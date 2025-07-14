@@ -4,3 +4,7 @@
 __pycache__/
 *.pyc
 **/*.db
+dashboard/.DS_Store
+.gitignore
+.DS_Store
+dashboard/debug.log
