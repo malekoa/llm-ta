@@ -4,6 +4,7 @@ cachetools==5.5.2
 certifi==2025.7.9
 charset-normalizer==3.4.2
 distro==1.9.0
+email-reply-parser==0.5.12
 google-api-core==2.25.1
 google-api-python-client==2.176.0
 google-auth==2.40.3

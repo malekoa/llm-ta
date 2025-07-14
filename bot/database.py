@@ -2,7 +2,7 @@ import sqlite3
 import hashlib
 import time
 
-conn = sqlite3.connect('bot.db')
+conn = sqlite3.connect('bot/data.db')
 cursor = conn.cursor()
 
 cursor.execute('''
@@ -14,6 +14,17 @@ CREATE TABLE IF NOT EXISTS messages (
     body TEXT,
     is_from_bot INTEGER,
     timestamp INTEGER
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    vote TEXT CHECK(vote IN ('up', 'down')),
+    comment TEXT,
+    submitted_at INTEGER,
+    FOREIGN KEY (message_id) REFERENCES messages(id)
 )
 ''')
 conn.commit()
