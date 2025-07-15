@@ -6,6 +6,7 @@ from gmail_client import get_service, get_unread_messages, get_message_detail
 from responder import generate_response, HTML_HEADER, remove_previous_footer
 from database import save_message
 import re
+import time
 
 def extract_body(mime_msg):
     if mime_msg.is_multipart():
@@ -47,6 +48,8 @@ def send_reply(service, thread_id, to_email, html_body, original_msg_id, subject
 
 def handle_message(service, msg_meta):
     mime_msg, full_msg = get_message_detail(service, msg_meta['id'])
+    timestamp_ms = int(full_msg.get("internalDate", "0"))  # in milliseconds
+    timestamp = timestamp_ms // 1000  # convert to seconds
     sender_email = parseaddr(mime_msg['From'])[1]
     subject = extract_subject(mime_msg)
     body_raw = extract_body(mime_msg)
@@ -59,14 +62,13 @@ def handle_message(service, msg_meta):
     response_html = generate_response(subject, user_input)
 
     # Save original user message
-    save_message(msg_meta['id'], thread_id, sender_email, subject, user_input, is_from_bot=0)
+    save_message(msg_meta['id'], thread_id, sender_email, subject, user_input, is_from_bot=0, timestamp=timestamp)
 
     # Prepare bot reply
     bot_msg_id = msg_meta['id'] + "_bot"
     reply_html = format_reply_html(response_html, thread_id, bot_msg_id)
-
-    # Save bot message without HTML
-    save_message(bot_msg_id, thread_id, 'me', f"Re: {subject}", strip_html(response_html), is_from_bot=1)
+    # # Save bot message without HTML
+    save_message(bot_msg_id, thread_id, 'me', f"Re: {subject}", strip_html(response_html), is_from_bot=1, timestamp=int(time.time()))
 
     # Send response
     send_reply(service, thread_id, sender_email, reply_html, original_msg_id, subject)

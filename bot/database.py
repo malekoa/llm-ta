@@ -32,9 +32,9 @@ conn.commit()
 def hash_email(email):
     return hashlib.sha256(email.encode()).hexdigest()
 
-def save_message(msg_id, thread_id, sender, subject, body, is_from_bot):
+def save_message(msg_id, thread_id, sender, subject, body, is_from_bot, timestamp):
     cursor.execute('''
         INSERT OR REPLACE INTO messages (id, thread_id, sender_hash, subject, body, is_from_bot, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (msg_id, thread_id, hash_email(sender), subject, body, is_from_bot, int(time.time())))
+    ''', (msg_id, thread_id, hash_email(sender), subject, body, is_from_bot, timestamp))
     conn.commit()

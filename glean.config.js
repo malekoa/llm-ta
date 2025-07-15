@@ -2,7 +2,8 @@
 module.exports = {
   "gitignore": true,
   "includePatterns": [
-    "**/*.py"
+    "**/*.py",
+    "**/*.php"
   ],
   "blocks": {
     "dashboard": [
@@ -19,6 +20,12 @@ module.exports = {
       "dashboard/views/layouts/footer.php",
       "dashboard/views/layouts/head.php",
       "dashboard/views/layouts/nav.php"
+    ],
+    "bot": [
+      "bot/database.py",
+      "bot/gmail_client.py",
+      "bot/main.py",
+      "bot/responder.py"
     ]
   }
 };

@@ -14,4 +14,5 @@ $router->get("/login", "AuthController@login");
 $router->post("/login", "AuthController@login");
 $router->get("/logout", "AuthController@logout");
 $router->get("/", "DashboardController@home");
+$router->get("/thread", "DashboardController@thread");
 $router->dispatch($_SERVER["REQUEST_URI"], $_SERVER["REQUEST_METHOD"]);
