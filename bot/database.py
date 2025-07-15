@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS messages (
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id TEXT NOT NULL,
+    message_id TEXT NOT NULL UNIQUE,
     vote TEXT CHECK(vote IN ('up', 'down')),
     comment TEXT,
     submitted_at INTEGER,

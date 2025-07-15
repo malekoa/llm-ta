@@ -4,9 +4,16 @@ from html import unescape
 from email_reply_parser import EmailReplyParser
 from gmail_client import get_service, get_unread_messages, get_message_detail
 from responder import generate_response, HTML_HEADER, remove_previous_footer
-from database import save_message
+from database import save_message, hash_email
 import re
 import time
+
+def normalize_soft_linebreaks(text: str) -> str:
+    """
+    Replaces single newlines (soft line breaks) with spaces,
+    while preserving double newlines (paragraph breaks).
+    """
+    return re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
 
 def extract_body(mime_msg):
     if mime_msg.is_multipart():
@@ -22,11 +29,12 @@ def strip_html(html):
     text = re.sub(r'<[^>]+>', '', html)
     return unescape(text).strip()
 
-def format_reply_html(reply_text, thread_id, bot_message_id):
-    """Prepends the disclaimer/footer to the cleaned response."""
+def format_reply_html(reply_text, thread_id, bot_message_id, sender_email):
     footer = HTML_HEADER \
         .replace("THREAD_ID_PLACEHOLDER", thread_id) \
-        .replace("MESSAGE_ID_PLACEHOLDER", bot_message_id)
+        .replace("MESSAGE_ID_PLACEHOLDER", bot_message_id) \
+        .replace("SENDER_HASH_PLACEHOLDER", hash_email(sender_email))
+
     return footer + remove_previous_footer(reply_text).strip()
 
 def send_reply(service, thread_id, to_email, html_body, original_msg_id, subject):
@@ -59,6 +67,7 @@ def handle_message(service, msg_meta):
     print(f"Responding to: {sender_email}")
 
     user_input = EmailReplyParser.parse_reply(body_raw)
+    user_input = normalize_soft_linebreaks(user_input)
     response_html = generate_response(subject, user_input)
 
     # Save original user message
@@ -66,7 +75,7 @@ def handle_message(service, msg_meta):
 
     # Prepare bot reply
     bot_msg_id = msg_meta['id'] + "_bot"
-    reply_html = format_reply_html(response_html, thread_id, bot_msg_id)
+    reply_html = format_reply_html(response_html, thread_id, bot_msg_id, sender_email)
     # # Save bot message without HTML
     save_message(bot_msg_id, thread_id, 'me', f"Re: {subject}", strip_html(response_html), is_from_bot=1, timestamp=int(time.time()))
 

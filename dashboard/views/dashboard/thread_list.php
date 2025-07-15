@@ -10,13 +10,25 @@
 
         <div class="list">
             <?php foreach ($threads as $thread): ?>
+                <?php
+                $short_hash = substr($thread["sender_hash"] ?? "", -6);
+                $msg_count = (int) $thread["message_count"];
+                ?>
                 <a
                     class="is-flex is-justify-content-space-between is-align-items-center px-4 py-3 list-item"
                     href="/thread?thread_id=<?= htmlspecialchars($thread["thread_id"]) ?>"
                     style="border-bottom: 1px solid #eaeaea;">
-                    <div class="has-text-weight-medium">
-                        <?= htmlspecialchars($thread["thread_id"]) ?>
+
+                    <div>
+                        <div class="has-text-weight-medium">
+                            <?= htmlspecialchars($thread["thread_id"]) ?>
+                        </div>
+                        <div class="mt-1 is-size-7 has-text-grey">
+                            👤 <?= $short_hash ? "...$short_hash" : "Unknown sender" ?> ·
+                            📨 <?= $msg_count ?> message<?= $msg_count === 1 ? '' : 's' ?>
+                        </div>
                     </div>
+
                     <div class="is-size-7 has-text-grey-light">
                         <?= date("Y-m-d H:i", $thread["latest_time"]) ?>
                     </div>

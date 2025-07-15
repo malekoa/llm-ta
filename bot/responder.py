@@ -5,9 +5,10 @@ import re
 
 load_dotenv()
 
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-HTML_HEADER = """
+HTML_HEADER = f"""
 <!-- footer-start -->
 <div style="margin-bottom: 20px; padding: 12px; background-color: #e0e0e0; color: #333; font-size: 0.75rem; border-left: 4px solid #555;">
   <p style="margin: 0 0 6px 0;">
@@ -15,9 +16,9 @@ HTML_HEADER = """
   </p>
   <p style="margin: 0;">
     Was this response helpful?
-    <a href="http://your-dashboard.local/feedback?vote=up&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER">👍 Yes</a>
-    <a href="http://your-dashboard.local/feedback?vote=down&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
-    <a href="http://your-dashboard.local/thread?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
+    <a href="{BASE_URL}/thread?vote=up&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER">👍 Yes</a>
+    <a href="{BASE_URL}/thread?vote=down&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
+    <a href="{BASE_URL}/thread?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
   </p>
 </div>
 <!-- footer-end -->
