@@ -6,7 +6,9 @@ function initializeDatabaseIfMissing()
 
     // If the DB file doesn't exist, create it and initialize schema
     if (!file_exists(DB_PATH)) {
-        $pdo = new PDO("sqlite:" . DB_PATH);
+        require_once __DIR__ . '/Database.php';
+        $pdo = Database::getConnection();
+
         $pdo->exec("PRAGMA foreign_keys = ON;");
 
         $schemaPath = __DIR__ . "/../../shared/schema.sql";

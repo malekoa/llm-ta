@@ -21,7 +21,7 @@
       <!-- Card 1: Threads -->
       <div class="column is-4">
         <div class="card hover-grow">
-          <a href="/thread" class="is-block card-content">
+          <a href="/threads" class="is-block card-content">
             <p class="title is-5">📬 View Email Threads</p>
             <p class="has-text-grey subtitle is-6">Browse all conversation threads</p>
             <p class="mt-2 is-size-7 has-text-grey-light">

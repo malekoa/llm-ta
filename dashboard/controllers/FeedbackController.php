@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/../models/Message.php';
+require_once __DIR__ . '/../models/Feedback.php';
+
 class FeedbackController extends Controller
 {
     public function submit()
@@ -15,47 +18,23 @@ class FeedbackController extends Controller
             return;
         }
 
-        $pdo = new PDO("sqlite:" . DB_PATH);
+        $feedback = new Feedback();
+        $message = new Message();
 
-        $stmt = $pdo->prepare("SELECT 1 FROM feedback WHERE message_id = ?");
-        $stmt->execute([$message_id]);
-        $alreadyExists = $stmt->fetchColumn();
-
-        if ($alreadyExists) {
+        if ($feedback->existsForMessage($message_id)) {
             http_response_code(409); // Conflict
             echo json_encode(["error" => "Feedback already submitted for this message."]);
             return;
         }
 
-        // Make sure this sender_id was part of the thread (as a user)
-        $stmt = $pdo->prepare("
-            SELECT 1
-            FROM messages
-            WHERE thread_id = (
-                SELECT thread_id FROM messages WHERE id = ?
-            ) AND is_from_bot = 0 AND sender_id = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$message_id, $sender_id]);
-        $valid = $stmt->fetchColumn();
-
-        if (!$valid) {
+        $thread_id = $message->getThreadIdByMessageId($message_id);
+        if (!$thread_id || !$message->threadExistsForSender($thread_id, $sender_id)) {
             http_response_code(403);
             echo json_encode(["error" => "Unauthorized or mismatched sender."]);
             return;
         }
 
-        // Store feedback
-        $stmt = $pdo->prepare("
-            INSERT INTO feedback (message_id, vote, comment, submitted_at)
-            VALUES (?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $message_id,
-            $vote,
-            $comment,
-            time()
-        ]);
+        $feedback->submit($message_id, $vote, $comment);
 
         echo json_encode(["success" => true]);
     }

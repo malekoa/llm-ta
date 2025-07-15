@@ -10,7 +10,8 @@ module.exports = {
       "bot/database.py",
       "bot/gmail_client.py",
       "bot/main.py",
-      "bot/responder.py"
+      "bot/responder.py",
+      "shared/schema.sql"
     ],
     "dashboard": [
       "dashboard/config.php",
@@ -29,7 +30,8 @@ module.exports = {
       "dashboard/views/dashboard/thread_list.php",
       "dashboard/views/layouts/footer.php",
       "dashboard/views/layouts/head.php",
-      "dashboard/views/layouts/nav.php"
+      "dashboard/views/layouts/nav.php",
+      "shared/schema.sql"
     ]
   }
 };
