@@ -1,6 +1,6 @@
 <?php
 
-define("DB_PATH", dirname(__DIR__) . "/bot/data.db");
+define("DB_PATH", dirname(__DIR__) . "/shared/data.db");
 // Map of username => password hash
 define("USERS", [
     "admin" => '$2y$12$WBiFrCDM1Ud8n9yXJ2wzUOKRKP2nX9Y16hmP5vhsiV5dwyQWAzvbe',

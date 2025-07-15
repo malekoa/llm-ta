@@ -2,7 +2,7 @@ import sqlite3
 import hashlib
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "../shared/data.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "../shared/schema.sql")
 
 conn = sqlite3.connect(DB_PATH)
