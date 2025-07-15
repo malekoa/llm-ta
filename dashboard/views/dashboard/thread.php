@@ -9,9 +9,8 @@
     function feedbackWidget({
         vote = null,
         messageId,
-        senderHash
+        senderId // <-- renamed from senderHash
     }) {
-        // Check for URL-based vote override
         const params = new URLSearchParams(window.location.search);
         const urlVote = params.get("vote");
         const urlMessageId = params.get("message_id");
@@ -25,7 +24,7 @@
             comment: '',
             submitting: false,
             submitted: false,
-            senderHash,
+            senderId, // <-- renamed
             submitFeedback() {
                 if (!this.vote) return;
 
@@ -40,12 +39,12 @@
                         message_id: messageId,
                         vote: this.vote,
                         comment: this.comment,
-                        sender_hash: this.senderHash
+                        sender_id: this.senderId // <-- renamed here
                     })
                 }).then(res => {
                     this.submitting = false;
                     if (res.status === 409) {
-                        this.submitted = true; // Already submitted
+                        this.submitted = true;
                     } else if (res.ok) {
                         this.submitted = true;
                     } else {
@@ -89,7 +88,7 @@
                 x-data='feedbackWidget({
     vote: <?= json_encode($initialVote) ?>,
     messageId: <?= json_encode($msgId) ?>,
-    senderHash: <?= json_encode($sender_hash ?? "") ?>
+    senderId: <?= json_encode($sender_id ?? "") ?>
 })'>
                 <div class="message-header">
                     <p><?= $isBot ? "TA Bot" : "User" ?></p>

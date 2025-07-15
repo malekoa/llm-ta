@@ -1,40 +1,27 @@
 import sqlite3
 import hashlib
-import time
+import os
 
-conn = sqlite3.connect('bot/data.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "../shared/schema.sql")
+
+conn = sqlite3.connect(DB_PATH)
+conn.execute("PRAGMA foreign_keys = ON;")
+
+# Load schema.sql once
+with open(SCHEMA_PATH, "r") as f:
+    conn.executescript(f.read())
+
 cursor = conn.cursor()
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS messages (
-    id TEXT PRIMARY KEY,
-    thread_id TEXT,
-    sender_hash TEXT,
-    subject TEXT,
-    body TEXT,
-    is_from_bot INTEGER,
-    timestamp INTEGER
-)
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id TEXT NOT NULL UNIQUE,
-    vote TEXT CHECK(vote IN ('up', 'down')),
-    comment TEXT,
-    submitted_at INTEGER,
-    FOREIGN KEY (message_id) REFERENCES messages(id)
-)
-''')
-conn.commit()
 
 def hash_email(email):
     return hashlib.sha256(email.encode()).hexdigest()
 
 def save_message(msg_id, thread_id, sender, subject, body, is_from_bot, timestamp):
+    sender_hash = hash_email(sender)
+    cursor.execute('INSERT OR IGNORE INTO senders (id) VALUES (?)', (sender_hash,))
     cursor.execute('''
-        INSERT OR REPLACE INTO messages (id, thread_id, sender_hash, subject, body, is_from_bot, timestamp)
+        INSERT OR REPLACE INTO messages (id, thread_id, sender_id, subject, body, is_from_bot, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (msg_id, thread_id, hash_email(sender), subject, body, is_from_bot, timestamp))
+    ''', (msg_id, thread_id, sender_hash, subject, body, is_from_bot, timestamp))
     conn.commit()

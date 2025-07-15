@@ -6,26 +6,30 @@ module.exports = {
     "**/*.php"
   ],
   "blocks": {
-    "dashboard": [
-      "dashboard/config.php",
-      "dashboard/controllers/AuthController.php",
-      "dashboard/controllers/DashboardController.php",
-      "dashboard/core/Controller.php",
-      "dashboard/core/Router.php",
-      "dashboard/core/View.php",
-      "dashboard/core/debug.php",
-      "dashboard/index.php",
-      "dashboard/views/auth/login.php",
-      "dashboard/views/dashboard/home.php",
-      "dashboard/views/layouts/footer.php",
-      "dashboard/views/layouts/head.php",
-      "dashboard/views/layouts/nav.php"
-    ],
     "bot": [
       "bot/database.py",
       "bot/gmail_client.py",
       "bot/main.py",
       "bot/responder.py"
+    ],
+    "dashboard": [
+      "dashboard/config.php",
+      "dashboard/controllers/AuthController.php",
+      "dashboard/controllers/DashboardController.php",
+      "dashboard/controllers/FeedbackController.php",
+      "dashboard/core/Controller.php",
+      "dashboard/core/Router.php",
+      "dashboard/core/View.php",
+      "dashboard/core/debug.php",
+      "dashboard/core/setup.php",
+      "dashboard/index.php",
+      "dashboard/views/auth/login.php",
+      "dashboard/views/dashboard/home.php",
+      "dashboard/views/dashboard/thread.php",
+      "dashboard/views/dashboard/thread_list.php",
+      "dashboard/views/layouts/footer.php",
+      "dashboard/views/layouts/head.php",
+      "dashboard/views/layouts/nav.php"
     ]
   }
 };

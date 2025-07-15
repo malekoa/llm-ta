@@ -7,9 +7,9 @@ class FeedbackController extends Controller
         $message_id = $_POST["message_id"] ?? null;
         $vote = $_POST["vote"] ?? null;
         $comment = $_POST["comment"] ?? "";
-        $sender_hash = $_POST["sender_hash"] ?? null;
+        $sender_id = $_POST["sender_id"] ?? null;
 
-        if (!$message_id || !in_array($vote, ["up", "down"]) || !$sender_hash) {
+        if (!$message_id || !in_array($vote, ["up", "down"]) || !$sender_id) {
             http_response_code(400);
             echo json_encode(["error" => "Missing or invalid parameters."]);
             return;
@@ -27,16 +27,16 @@ class FeedbackController extends Controller
             return;
         }
 
-        // Make sure this sender_hash was part of the thread (as a user)
+        // Make sure this sender_id was part of the thread (as a user)
         $stmt = $pdo->prepare("
             SELECT 1
             FROM messages
             WHERE thread_id = (
                 SELECT thread_id FROM messages WHERE id = ?
-            ) AND is_from_bot = 0 AND sender_hash = ?
+            ) AND is_from_bot = 0 AND sender_id = ?
             LIMIT 1
         ");
-        $stmt->execute([$message_id, $sender_hash]);
+        $stmt->execute([$message_id, $sender_id]);
         $valid = $stmt->fetchColumn();
 
         if (!$valid) {

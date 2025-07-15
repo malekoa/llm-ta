@@ -13,7 +13,7 @@ class DashboardController extends Controller
         $thread_count = (int) $stmt->fetchColumn();
 
         // Count unique student senders
-        $stmt = $pdo->query("SELECT COUNT(DISTINCT sender_hash) FROM messages WHERE is_from_bot = 0");
+        $stmt = $pdo->query("SELECT COUNT(DISTINCT sender_id) FROM messages WHERE is_from_bot = 0");
         $unique_senders = (int) $stmt->fetchColumn();
 
 
@@ -29,7 +29,7 @@ class DashboardController extends Controller
         $thread_id = $_GET["thread_id"] ?? null;
         $message_id = $_GET["message_id"] ?? null;
         $vote = $_GET["vote"] ?? null;
-        $sender_hash = $_GET["sender_hash"] ?? null;
+        $sender_id = $_GET["sender_id"] ?? null;
 
         $pdo = new PDO("sqlite:" . DB_PATH);
 
@@ -44,11 +44,11 @@ class DashboardController extends Controller
                 return;
             }
 
-            // Check if the sender_hash exists for this thread
+            // Check if the sender_id exists for this thread
             $can_vote = false;
-            if ($sender_hash) {
-                $stmt = $pdo->prepare("SELECT 1 FROM messages WHERE thread_id = ? AND sender_hash = ? LIMIT 1");
-                $stmt->execute([$thread_id, $sender_hash]);
+            if ($sender_id) {
+                $stmt = $pdo->prepare("SELECT 1 FROM messages WHERE thread_id = ? AND sender_id = ? LIMIT 1");
+                $stmt->execute([$thread_id, $sender_id]);
                 $can_vote = (bool) $stmt->fetchColumn();
             }
 
@@ -58,7 +58,7 @@ class DashboardController extends Controller
                 "thread_id" => $thread_id,
                 "message_id" => $message_id,
                 "vote" => $vote,
-                "sender_hash" => $sender_hash,
+                "sender_id" => $sender_id,
                 "can_vote" => $can_vote,
             ]);
             return;
@@ -76,12 +76,12 @@ class DashboardController extends Controller
                 MAX(timestamp) as latest_time,
                 COUNT(*) as message_count,
                 (
-                    SELECT sender_hash 
+                    SELECT sender_id 
                     FROM messages 
                     WHERE messages.thread_id = outer.thread_id AND is_from_bot = 0 
                     ORDER BY timestamp ASC 
                     LIMIT 1
-                ) as sender_hash
+                ) as sender_id
             FROM messages AS outer
             GROUP BY thread_id
             ORDER BY latest_time DESC

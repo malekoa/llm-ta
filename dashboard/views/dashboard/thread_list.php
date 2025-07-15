@@ -11,7 +11,7 @@
         <div class="list">
             <?php foreach ($threads as $thread): ?>
                 <?php
-                $short_hash = substr($thread["sender_hash"] ?? "", -6);
+                $short_hash = substr($thread["sender_id"] ?? "", -8);
                 $msg_count = (int) $thread["message_count"];
                 ?>
                 <a
