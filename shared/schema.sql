@@ -15,11 +15,18 @@ CREATE TABLE IF NOT EXISTS messages (
     FOREIGN KEY (sender_id) REFERENCES senders(id)
 );
 
-CREATE TABLE IF NOT EXISTS feedback (
+CREATE TABLE IF NOT EXISTS votes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id TEXT NOT NULL UNIQUE,
     vote TEXT CHECK(vote IN ('up', 'down')),
-    comment TEXT,
-    submitted_at INTEGER,
+    FOREIGN KEY (message_id) REFERENCES messages(id)
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT NOT NULL,
+    author TEXT NOT NULL,
+    content TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
     FOREIGN KEY (message_id) REFERENCES messages(id)
 );

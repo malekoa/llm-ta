@@ -16,9 +16,9 @@ HTML_HEADER = f"""
   </p>
   <p style="margin: 0;">
     Was this response helpful?
-    <a href="{BASE_URL}/thread?vote=up&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER">👍 Yes</a>
-    <a href="{BASE_URL}/thread?vote=down&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
-    <a href="{BASE_URL}/thread?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_hash=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
+    <a href="{BASE_URL}/thread?vote=up&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER">👍 Yes</a>
+    <a href="{BASE_URL}/thread?vote=down&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
+    <a href="{BASE_URL}/thread?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
   </p>
 </div>
 <!-- footer-end -->

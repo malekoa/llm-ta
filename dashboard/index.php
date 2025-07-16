@@ -20,5 +20,6 @@ $router->get("/logout", "AuthController@logout");
 $router->get("/", "DashboardController@home");
 $router->get("/threads", "DashboardController@threadList");
 $router->get("/thread", "DashboardController@threadView");
-$router->post("/feedback", "FeedbackController@submit");
+$router->post("/comment", "DashboardController@postComment");
+$router->post("/comment/delete", "DashboardController@deleteComment");
 $router->dispatch($_SERVER["REQUEST_URI"], $_SERVER["REQUEST_METHOD"]);
