@@ -21,12 +21,3 @@ CREATE TABLE IF NOT EXISTS votes (
     vote TEXT CHECK(vote IN ('up', 'down')),
     FOREIGN KEY (message_id) REFERENCES messages(id)
 );
-
-CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id TEXT NOT NULL,
-    author TEXT NOT NULL,
-    content TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    FOREIGN KEY (message_id) REFERENCES messages(id)
-);

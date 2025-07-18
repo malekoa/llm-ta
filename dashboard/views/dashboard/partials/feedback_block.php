@@ -1,3 +1,17 @@
+<div class="is-flex is-flex-direction-column mt-5" style="gap: 0.5rem;">
+    <p class="is-size-7 has-text-weight-semibold">Was this response helpful?</p>
+    <div class="is-flex is-align-items-center" style="gap: 0.5rem;">
+        <button
+            class="button is-small"
+            :class="vote === 'up' ? 'is-success' : 'is-light'"
+            @click="toggleVote('up')">👍 Upvote</button>
+        <button
+            class="button is-small"
+            :class="vote === 'down' ? 'is-danger' : 'is-light'"
+            @click="toggleVote('down')">👎 Downvote</button>
+    </div>
+</div>
+
 <div x-show="vote" x-transition>
     <template x-if="!submitted">
         <form class="mt-3" @submit.prevent="submitFeedback">

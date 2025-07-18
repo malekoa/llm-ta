@@ -42,6 +42,15 @@ class Message
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getMessageById(string $message_id): ?array
+    {
+        $stmt = $this->pdo->prepare("SELECT * FROM messages WHERE id = ?");
+        $stmt->execute([$message_id]);
+        $msg = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $msg ?: null;
+    }
+
+
     public function getMessagesByThread(string $thread_id): array
     {
         $stmt = $this->pdo->prepare("SELECT * FROM messages WHERE thread_id = ? ORDER BY timestamp ASC");

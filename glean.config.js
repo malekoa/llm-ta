@@ -14,7 +14,6 @@ module.exports = {
       "shared/schema.sql"
     ],
     "dashboard": [
-      "shared/schema.sql",
       "dashboard/config.php",
       "dashboard/controllers/AuthController.php",
       "dashboard/controllers/DashboardController.php",
@@ -25,10 +24,9 @@ module.exports = {
       "dashboard/core/debug.php",
       "dashboard/core/setup.php",
       "dashboard/index.php",
-      "dashboard/models/Comment.php",
-      "dashboard/models/Feedback.php",
       "dashboard/models/Message.php",
       "dashboard/models/Sender.php",
+      "dashboard/models/Vote.php",
       "dashboard/views/auth/login.php",
       "dashboard/views/dashboard/home.php",
       "dashboard/views/dashboard/partials/comment_block.php",
@@ -38,7 +36,9 @@ module.exports = {
       "dashboard/views/dashboard/thread_list.php",
       "dashboard/views/layouts/footer.php",
       "dashboard/views/layouts/head.php",
-      "dashboard/views/layouts/nav.php"
+      "dashboard/views/layouts/nav.php",
+      "shared/schema.sql",
+      "dashboard/views/dashboard/feedback.php"
     ]
   }
 };

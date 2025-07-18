@@ -18,24 +18,27 @@ $initialVote = $isTargeted ? $vote : null;
     x-data='feedbackWidget({
         vote: <?= json_encode($initialVote) ?>,
         messageId: <?= json_encode($msgId) ?>,
-        senderId: <?= json_encode($sender_id ?? "") ?>
+        senderId: <?= json_encode($sender_id ?? "") ?>,
+        csrfToken: <?= json_encode($csrf_token) ?>
     })'>
-    <div class="message-header">
-        <p><?= $isBot ? "TA Bot" : "User" ?></p>
-        <small><?= date("Y-m-d H:i", $msg["timestamp"]) ?></small>
+    <div class="is-justify-content-space-between message-header">
+        <div>
+            <p><?= $isBot ? "AutoTA" : "User" ?></p>
+            <small><?= date("Y-m-d H:i", $msg["timestamp"]) ?></small>
+        </div>
+
+        <?php if ($msgId): ?>
+            <button
+                class="button is-small is-white is-light"
+                onclick="copyLink('<?= $msg['thread_id'] ?>', '<?= $msgId ?>', this)">
+                🔗 Get Link
+            </button>
+        <?php endif; ?>
     </div>
+
 
     <div class="message-body">
         <p><strong><?= htmlspecialchars($msg["subject"]) ?></strong></p>
         <p><?= htmlspecialchars($msg["body"]) ?></p>
-
-        <?php if ($isBot && ($can_vote || ($_SESSION["admin"] ?? false))): ?>
-            <?php include __DIR__ . '/comment_block.php'; ?>
-        <?php endif; ?>
-
-        <?php if ($isBot && ($can_vote || ($_SESSION["admin"] ?? false))): ?>
-            <?php include __DIR__ . '/feedback_block.php'; ?>
-        <?php endif; ?>
-
     </div>
 </article>

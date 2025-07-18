@@ -16,13 +16,14 @@ HTML_HEADER = f"""
   </p>
   <p style="margin: 0;">
     Was this response helpful?
-    <a href="{BASE_URL}/thread?vote=up&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER">👍 Yes</a>
-    <a href="{BASE_URL}/thread?vote=down&thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
-    <a href="{BASE_URL}/thread?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
+    <a href="{BASE_URL}/feedback?vote=up&message_id=MESSAGE_ID_PLACEHOLDER">👍 Yes</a>
+    <a href="{BASE_URL}/feedback?vote=down&message_id=MESSAGE_ID_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
   </p>
 </div>
 <!-- footer-end -->
 """
+
+# <a href="{BASE_URL}/feedback?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
 
 def generate_response(subject: str, body: str) -> str:
     prompt = f"""Your name is TA Bot. You are a helpful teaching assistant for a semantics course. You know all about set theory. Here is a message you've received:

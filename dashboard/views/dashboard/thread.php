@@ -29,11 +29,20 @@
 
 <section class="section">
     <div class="container">
-        <div class="mb-4 columns is-vcentered is-mobile">
-            <div class="column">
+        <div class="mb-4 columns is-vcentered is-mobile is-multiline">
+            <div class="column is-12">
                 <h1 class="mb-0 title">Conversation Thread</h1>
             </div>
-            <div class="column is-narrow">
+
+            <?php if ($_SESSION["admin"] ?? false): ?>
+                <div class="column is-narrow">
+                    <a href="/threads" class="button is-small">
+                        ← Back to All Threads
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <div class="ml-auto column is-narrow">
                 <button
                     class="button is-small is-link is-light"
                     onclick="copyThreadLink('<?= $thread_id ?>', this)">
@@ -51,6 +60,7 @@
         </div>
     </div>
 </section>
+
 
 <script>
     function copyLink(threadId, messageId, btn) {

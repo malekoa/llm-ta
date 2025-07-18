@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../models/Message.php';
-require_once __DIR__ . '/../models/Comment.php';
+require_once __DIR__ . '/../models/Vote.php';
 
 class DashboardController extends Controller
 {
@@ -39,8 +39,10 @@ class DashboardController extends Controller
 
         $thread_id = $_GET["thread_id"] ?? null;
         $message_id = $_GET["message_id"] ?? null;
-        $vote = $_GET["vote"] ?? null;
         $sender_id = $_GET["sender_id"] ?? null;
+
+        $vote = null;
+        $can_vote = false;
 
         if (!$thread_id) {
             echo "Missing thread ID.";
@@ -50,23 +52,19 @@ class DashboardController extends Controller
         $msg = new Message();
         $messages = $msg->getMessagesByThread($thread_id);
 
-
-        // After getting $messages
-        $comment_model = new Comment();
-        foreach ($messages as &$message) {
-            $message["comments"] = $comment_model->getByMessageId($message["id"]);
-        }
-
-
-
         if (!$messages) {
             echo "Thread not found.";
             return;
         }
 
-        $can_vote = false;
-        if ($sender_id) {
-            $can_vote = $msg->threadExistsForSender($thread_id, $sender_id);
+        // Validate sender and assign can_vote
+        if ($sender_id && $msg->threadExistsForSender($thread_id, $sender_id)) {
+            $can_vote = true;
+            // Only allow vote if can_vote is true
+            $vote_param = $_GET["vote"] ?? null;
+            if (in_array($vote_param, ["up", "down"], true)) {
+                $vote = $vote_param;
+            }
         }
 
         $this->render("dashboard/thread", [
@@ -81,57 +79,70 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function postComment()
-    {
-        $message_id = $_POST["message_id"] ?? null;
-        $content = trim($_POST["content"] ?? "");
-        $sender_id = $_POST["sender_id"] ?? null;
-
-        if (!$message_id || !$content || !$sender_id) {
-            http_response_code(400);
-            echo "Missing content, message ID, or sender ID.";
-            return;
-        }
-
-        // Only allow if the sender_id is valid for the thread
-        $msg = new Message();
-        $thread_id = $msg->getThreadIdByMessageId($message_id);
-        if (!$msg->threadExistsForSender($thread_id, $sender_id)) {
-            http_response_code(403);
-            echo "Not authorized to comment.";
-            return;
-        }
-
-        $author = "sender:$sender_id";
-
-        $comment_model = new Comment();
-        $comment_model->add($message_id, $author, $content);
-
-        header("Location: " . $_SERVER["HTTP_REFERER"]);
-    }
-
-
-    public function deleteComment()
+    public function submitVote()
     {
         $this->verify_csrf_token_or_die();
 
-        $comment_id = $_POST["comment_id"] ?? null;
+        $message_id = $_POST["message_id"] ?? null;
+        $vote = $_POST["vote"] ?? null;
+        $sender_id = $_POST["sender_id"] ?? null;
 
-        if (!$comment_id) {
+        if (!$message_id || !$sender_id) {
             http_response_code(400);
-            echo "Missing comment ID.";
+            echo json_encode(["error" => "Missing parameters."]);
             return;
         }
 
-        if (!($_SESSION["admin"] ?? false)) {
+        $msg = new Message();
+        $thread_id = $msg->getThreadIdByMessageId($message_id);
+        if (!$thread_id || !$msg->threadExistsForSender($thread_id, $sender_id)) {
             http_response_code(403);
-            echo "Unauthorized.";
+            echo json_encode(["error" => "Unauthorized."]);
             return;
         }
 
-        $comment_model = new Comment();
-        $comment_model->delete($comment_id);
+        $vote_model = new Vote();
 
-        header("Location: " . $_SERVER["HTTP_REFERER"]);
+        if ($vote === '') {
+            $vote_model->remove($message_id);
+        } elseif (in_array($vote, ["up", "down"], true)) {
+            $vote_model->submit($message_id, $vote);
+        } else {
+            http_response_code(400);
+            echo json_encode(["error" => "Invalid vote."]);
+            return;
+        }
+
+        echo json_encode(["success" => true]);
+    }
+
+    public function feedbackView()
+    {
+        $message_id = $_GET["message_id"] ?? null;
+        $vote = $_GET["vote"] ?? null;
+
+        if (!$message_id || !in_array($vote, ['up', 'down'])) {
+            echo "Invalid feedback link.";
+            return;
+        }
+
+        $msg = new Message();
+        $message = $msg->getMessageById($message_id);
+
+        if (!$message) {
+            echo "Message not found.";
+            return;
+        }
+
+        // Store the vote (overwrite if exists)
+        $voteModel = new Vote();
+        $voteModel->submit($message_id, $vote);
+
+        // Render confirmation view
+        $this->render("dashboard/feedback_confirmation", [
+            "vote" => $vote,
+            "message_id" => $message["id"],
+            "thread_id" => $message["thread_id"]
+        ]);
     }
 }
