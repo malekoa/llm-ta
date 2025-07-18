@@ -4,9 +4,16 @@ from html import unescape
 from email_reply_parser import EmailReplyParser
 from gmail_client import get_service, get_unread_messages, get_message_detail
 from responder import generate_response, HTML_HEADER, remove_previous_footer
-from database import save_message, hash_email
+from database import save_message, hash_email, get_thread_messages
 import re
 import time
+import logging
+
+logging.basicConfig(
+    filename='bot.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def normalize_soft_linebreaks(text: str) -> str:
     """
@@ -54,6 +61,14 @@ def send_reply(service, thread_id, to_email, html_body, original_msg_id, subject
         body={'raw': raw, 'threadId': thread_id}
     ).execute()
 
+def summarize_thread(thread):
+    summary = []
+    for sender_id, body, is_from_bot in thread:
+        role = "Bot" if is_from_bot else "User"
+        snippet = body.strip().replace('\n', ' ')[:200]  # First 200 chars
+        summary.append(f"{role} ({sender_id[:8]}...): {snippet}")
+    return "\n    " + "\n    ".join(summary)
+
 def handle_message(service, msg_meta):
     mime_msg, full_msg = get_message_detail(service, msg_meta['id'])
     timestamp_ms = int(full_msg.get("internalDate", "0"))  # in milliseconds
@@ -68,10 +83,13 @@ def handle_message(service, msg_meta):
 
     user_input = EmailReplyParser.parse_reply(body_raw)
     user_input = normalize_soft_linebreaks(user_input)
-    response_html = generate_response(subject, user_input)
-
     # Save original user message
     save_message(msg_meta['id'], thread_id, sender_email, subject, user_input, is_from_bot=0, timestamp=timestamp)
+    thread_messages = get_thread_messages(thread_id)
+    response_html = generate_response(subject, thread_messages)
+
+    logging.info(f"Responding to: {sender_email}\nSubject: {subject}\nThread:\n{summarize_thread(thread_messages)}")
+
 
     # Prepare bot reply
     bot_msg_id = msg_meta['id'] + "_bot"

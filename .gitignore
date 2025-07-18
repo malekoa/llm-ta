@@ -9,3 +9,4 @@ dashboard/.DS_Store
 .DS_Store
 dashboard/debug.log
 dashboard/log.txt
+bot.log

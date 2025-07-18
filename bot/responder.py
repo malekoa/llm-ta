@@ -25,23 +25,25 @@ HTML_HEADER = f"""
 
 # <a href="{BASE_URL}/feedback?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
 
-def generate_response(subject: str, body: str) -> str:
-    prompt = f"""Your name is TA Bot. You are a helpful teaching assistant for a semantics course. You know all about set theory. Here is a message you've received:
+def generate_response(subject: str, thread_messages: list) -> str:
+    system_prompt = {
+        "role": "system",
+        "content": "You are a helpful teaching assistant who replies in polite HTML using <p>, <strong>, and <ul> as needed. Avoid inline styles. Sign off every email with \"Best, AutoTA\" in a new line."
+    }
 
-Subject: {subject}
+    messages = [system_prompt]
 
-Body:
-{body}
-
-Reply in a polite and professional tone. Omit all placeholders."""
+    for sender_id, body, is_from_bot in thread_messages:
+        role = "assistant" if is_from_bot else "user"
+        messages.append({
+            "role": role,
+            "content": body
+        })
 
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful teaching assistant who replies in polite HTML using <p>, <strong>, and <ul> as needed. Avoid inline styles."},
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             max_tokens=300,
             temperature=0.7
         )
@@ -49,10 +51,11 @@ Reply in a polite and professional tone. Omit all placeholders."""
         if isinstance(content, str):
             return content.strip()
         else:
-            return "Thank you for your email. I’ll get back to you shortly."
+            return "Thank you for your email. I'll get back to you shortly."
     except Exception as e:
         print("Error generating response:", e)
-        return "Thank you for your email. I’ll get back to you shortly."
+        return "Thank you for your email. I'll get back to you shortly."
+
 
 def remove_previous_footer(body: str) -> str:
     """Remove any previously added disclaimer blocks from bot replies."""

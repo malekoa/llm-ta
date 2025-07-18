@@ -25,3 +25,12 @@ def save_message(msg_id, thread_id, sender, subject, body, is_from_bot, timestam
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (msg_id, thread_id, sender_hash, subject, body, is_from_bot, timestamp))
     conn.commit()
+
+def get_thread_messages(thread_id):
+    cursor.execute('''
+        SELECT sender_id, body, is_from_bot
+        FROM messages
+        WHERE thread_id = ?
+        ORDER BY timestamp ASC
+    ''', (thread_id,))
+    return cursor.fetchall()

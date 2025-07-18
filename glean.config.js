@@ -6,13 +6,6 @@ module.exports = {
     "**/*.php"
   ],
   "blocks": {
-    "bot": [
-      "bot/database.py",
-      "bot/gmail_client.py",
-      "bot/main.py",
-      "bot/responder.py",
-      "shared/schema.sql"
-    ],
     "dashboard": [
       "dashboard/config.php",
       "dashboard/controllers/AuthController.php",
@@ -39,6 +32,13 @@ module.exports = {
       "dashboard/views/layouts/nav.php",
       "shared/schema.sql",
       "dashboard/views/dashboard/feedback.php"
+    ],
+    "bot": [
+      "shared/schema.sql",
+      "bot/database.py",
+      "bot/gmail_client.py",
+      "bot/main.py",
+      "bot/responder.py"
     ]
   }
 };
