@@ -33,24 +33,28 @@ class Responder:
 
     def generate(self, subject: str, thread_messages: List[Tuple[str, str, int]]) -> str:
         """
-        Generate an HTML-formatted reply by sending the conversation history
+        Generate a Markdown-formatted reply by sending the conversation history
         to OpenAI's chat completion endpoint.
-
-        :param subject: The email subject line (for context if needed)
-        :param thread_messages: List of tuples (sender_id, body, is_from_bot)
-        :return: An HTML string containing the AI-generated reply content.
         """
         system_prompt = {
             "role": "system",
             "content": (
-                "You are a helpful teaching assistant who replies in polite HTML "
-                "using <p>, <strong>, and <ul> as needed. Avoid inline styles. "
-                "Sign off every email with 'Best, AutoTA' in a new line."
+                """You are AutoTA, a helpful and friendly teaching assistant. 
+Reply in natural, conversational language like a real human assistant would. 
+Use contractions when appropriate (e.g., "I'm", "you're"), acknowledge the sender's context, and keep sentences concise and approachable. 
+
+Respond in Markdown format suitable for email (no HTML or email headers). 
+Use headings, bullet points, and emphasis only when they improve clarity. 
+Be empathetic and polite, but not overly formal. 
+Avoid generic filler phrases like "as an AI language model." 
+
+Sign off each email with: 
+
+Best,  
+AutoTA"""
             )
         }
         messages = [system_prompt]
-
-        # Build the chat history for OpenAI
         for sender_id, body, is_from_bot in thread_messages:
             role = "assistant" if is_from_bot else "user"
             messages.append({"role": role, "content": body})
@@ -64,13 +68,11 @@ class Responder:
             )
             content = response.choices[0].message.content
             return content.strip() if isinstance(content, str) else (
-                "Thank you for your email. I'll get back to you shortly."
+                "Thank you for your email.\n\nBest,\nAutoTA"
             )
-
         except Exception as e:
-            # Log error and return a fallback message
             print("Error generating response:", e)
-            return "Thank you for your email. I'll get back to you shortly."
+            return "Thank you for your email.\n\nBest,\nAutoTA"
 
     def remove_previous_footer(self, body: str) -> str:
         """
@@ -81,3 +83,38 @@ class Responder:
         """
         pattern = re.compile(r'<!-- footer-start -->.*?<!-- footer-end -->', re.DOTALL)
         return pattern.sub('', body).strip()
+
+    def summarize_sender(self, current_summary: str, new_message: str) -> str:
+        """
+        Update a rolling summary of a sender's style, tone, and recent topics
+        based on their latest message.
+        """
+        system_prompt = {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant that maintains concise summaries "
+                "of individual email senders. These summaries capture:"
+                "\n- The sender's tone and style"
+                "\n- Recurring themes or topics they mention"
+                "\n- Any relevant context about ongoing conversations"
+                "\nKeep the summary under 200 words and use a neutral tone."
+            ),
+        }
+        messages = [
+            system_prompt,
+            {"role": "user", "content": f"Current sender summary:\n{current_summary}"},
+            {"role": "user", "content": f"New message from this sender:\n{new_message}"},
+            {"role": "user", "content": "Update the sender summary accordingly."},
+        ]
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4.1-nano",
+                messages=messages,
+                max_tokens=200,
+                temperature=0.3,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print("Error summarizing sender:", e)
+            # fallback if no existing summary
+            return current_summary or new_message

@@ -1,8 +1,10 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS senders (
-    id TEXT PRIMARY KEY
+    id TEXT PRIMARY KEY,
+    summary TEXT DEFAULT ''
 );
+
 
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,

@@ -1,5 +1,6 @@
 import time
 import logging
+import markdown2
 from email.utils import parseaddr
 from email.mime.text import MIMEText
 from email_reply_parser import EmailReplyParser
@@ -25,7 +26,7 @@ def truncate_for_log(text: str, length: int = MAX_LOG_LENGTH) -> str:
 class MessageHandler:
     """
     Orchestrates reading an unread message, saving it,
-    generating a reply, sending, and marking it as read.
+    generating a reply (Markdown), converting to HTML, sending, and marking it as read.
     """
 
     def __init__(self, gmail: GmailClient, db: Database, responder: Responder):
@@ -34,9 +35,6 @@ class MessageHandler:
         self.responder = responder
 
     def handle_single(self, msg_id: str):
-        """
-        Fetch a Gmail message by id, parse it, save it, respond to it, and mark it as read.
-        """
         logging.info(f"Handling message {msg_id}")
         raw_msg = self.gmail.get_raw(msg_id)
 
@@ -45,15 +43,18 @@ class MessageHandler:
         timestamp = int(meta.get("internalDate", "0")) // 1000
         thread_id = meta['threadId']
         sender_email = parseaddr(mime_msg['From'])[1]
+        sender_id = self.db.hash_email(sender_email)
         subject = extract_subject(mime_msg)
 
-        # Extract and normalize user input (clean reply text only)
+        # Extract and normalize user input
         body_raw = extract_body(mime_msg)
         user_input = EmailReplyParser.parse_reply(body_raw)
         user_input = normalize_soft_linebreaks(user_input)
 
-        logging.info(f"Received email from {sender_email} (thread: {thread_id}) "
-                     f"subject: {subject}, body preview: {truncate_for_log(user_input)}")
+        logging.info(
+            f"Received email from {sender_email} (thread: {thread_id}) "
+            f"subject: {subject}, body preview: {truncate_for_log(user_input)}"
+        )
 
         # Save the original user message
         self.db.save_message(
@@ -61,13 +62,21 @@ class MessageHandler:
             user_input, is_from_bot=0, timestamp=timestamp
         )
 
-        # Generate AI response based on thread context
-        thread_messages = self.db.get_thread_messages(thread_id)
-        logging.debug(f"Thread messages for context: {truncate_for_log(str(thread_messages))}")
-        response_html = self.responder.generate(subject, thread_messages)
+        # --- Use old summary for the response ---
+        current_summary = self.db.get_sender_summary(sender_id)
+        summary_context = [
+            (None, f"Sender summary:\n{current_summary}", 0),
+            (None, user_input, 0)
+        ]
+        response_markdown = self.responder.generate(subject, summary_context)
 
-        logging.info(f"AI response generated for {sender_email}: "
-                     f"{truncate_for_log(strip_html(response_html))}")
+        logging.info(
+            f"AI Markdown response generated for {sender_email}: "
+            f"{truncate_for_log(response_markdown)}"
+        )
+
+        # Convert Markdown → HTML
+        response_html = markdown2.markdown(response_markdown)
 
         # Prepare bot reply (HTML footer + cleaned previous footers)
         bot_msg_id = msg_id + "_bot"
@@ -78,23 +87,26 @@ class MessageHandler:
             + self.responder.remove_previous_footer(response_html)
         )
 
-        # Save bot message (plain text version)
+        # Save bot message (store Markdown, not HTML)
         self.db.save_message(
             bot_msg_id, thread_id, "me", f"Re: {subject}",
-            strip_html(response_html), is_from_bot=1,
+            response_markdown, is_from_bot=1,
             timestamp=int(time.time())
         )
 
-        # Send the reply and mark the original as read
+        # Send the reply and mark original as read
         self._send_reply(thread_id, sender_email, reply_html,
-                         mime_msg['Message-ID'], subject)
+                        mime_msg['Message-ID'], subject)
         self.gmail.mark_as_read(msg_id)
         logging.info(f"Reply sent and message {msg_id} marked as read.")
 
+        # --- Update the sender summary after sending ---
+        new_summary = self.responder.summarize_sender(current_summary, user_input)
+        self.db.update_sender_summary(sender_id, new_summary)
+
+
+
     def _send_reply(self, thread_id, to_email, html_body, original_msg_id, subject):
-        """
-        Send an HTML reply back via Gmail API.
-        """
         if not original_msg_id.startswith('<'):
             original_msg_id = f"<{original_msg_id}>"
 

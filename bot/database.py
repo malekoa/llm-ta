@@ -86,6 +86,25 @@ class Database:
         )
         return self.cursor.fetchall()
 
+    def get_sender_summary(self, sender_id: str) -> str:
+        self.cursor.execute(
+            "SELECT summary FROM senders WHERE id = ?", (sender_id,)
+        )
+        row = self.cursor.fetchone()
+        return row[0] if row else ""
+
+    def update_sender_summary(self, sender_id: str, new_summary: str) -> None:
+        self.cursor.execute(
+            """
+            INSERT INTO senders (id, summary)
+            VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET summary = excluded.summary
+            """,
+            (sender_id, new_summary),
+        )
+        self.conn.commit()
+
+
     def close(self) -> None:
         """
         Close the database connection when done to free resources.
