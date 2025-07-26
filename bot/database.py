@@ -104,6 +104,34 @@ class Database:
         )
         self.conn.commit()
 
+    def add_document(self, filename: str, content: str):
+        self.cursor.execute(
+            "INSERT INTO documents (filename, content) VALUES (?, ?)",
+            (filename, content),
+        )
+        self.conn.commit()
+
+    def update_document_name(self, doc_id: int, new_filename: str):
+        self.cursor.execute(
+            "UPDATE documents SET filename = ? WHERE id = ?",
+            (new_filename, doc_id),
+        )
+        self.conn.commit()
+
+    def delete_document(self, doc_id: int):
+        self.cursor.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        self.conn.commit()
+
+    def list_documents(self):
+        self.cursor.execute(
+            "SELECT id, filename, length(content) as size, created_at FROM documents"
+        )
+        return self.cursor.fetchall()
+
+    def get_document_content(self, doc_id: int):
+        self.cursor.execute("SELECT content FROM documents WHERE id = ?", (doc_id,))
+        row = self.cursor.fetchone()
+        return row[0] if row else ""
 
     def close(self) -> None:
         """

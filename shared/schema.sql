@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS senders (
     summary TEXT DEFAULT ''
 );
 
-
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     thread_id TEXT,
@@ -22,4 +21,11 @@ CREATE TABLE IF NOT EXISTS votes (
     message_id TEXT NOT NULL UNIQUE,
     vote TEXT CHECK(vote IN ('up', 'down')),
     FOREIGN KEY (message_id) REFERENCES messages(id)
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT UNIQUE NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

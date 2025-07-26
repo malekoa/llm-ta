@@ -4,6 +4,7 @@ import time
 import subprocess
 import sys
 import os
+from helpers import latex_to_markdown
 
 # Add project root to sys.path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -52,7 +53,7 @@ st.title("📬 AutoTA Gmail Bot Dashboard")
 # Initialize database
 db = Database()
 
-tab1, tab2, tab3 = st.tabs(["Messages", "Senders", "Bot Control"])
+tab1, tab2, tab3, tab4 = st.tabs(["Messages", "Senders", "Bot Control", "Documents"])
 
 # ---- Tab 1: Messages & Thread Viewer ----
 with tab1:
@@ -95,7 +96,7 @@ with tab2:
                 db.update_sender_summary(sender_to_edit, new_summary)
                 st.success("Summary updated!")
                 time.sleep(1)
-                st.experimental_rerun()
+                st.rerun()
     else:
         st.info("No senders found in database.")
 
@@ -114,6 +115,60 @@ with tab3:
             st.text(result.stdout)
             if result.stderr:
                 st.error(result.stderr)
+
+with tab4:
+    st.header("📄 Document Management")
+
+    uploaded_files = st.file_uploader(
+        "Upload one or more text/LaTeX files",
+        type=["txt", "tex"],
+        accept_multiple_files=True
+    )
+
+    if uploaded_files:
+        if st.button("Save All Documents"):
+            for uploaded_file in uploaded_files:
+                try:
+                    content = uploaded_file.read().decode("utf-8")
+                    filename = uploaded_file.name
+
+                    # --- Check for LaTeX files ---
+                    if filename.endswith(".tex"):
+                        st.info(f"Converting {filename} from LaTeX to Markdown...")
+                        content = latex_to_markdown(content)
+                        filename = filename.replace(".tex", ".md")  # store as markdown
+                        st.success(f"{filename} saved (converted from LaTeX)!")
+                    else:
+                        st.success(f"{filename} saved successfully!")
+
+                    db.add_document(filename, content)
+                except Exception as e:
+                    st.error(f"Error saving {uploaded_file.name}: {e}")
+            st.rerun()
+
+    # List existing documents
+    docs = db.list_documents()
+    if docs:
+        st.subheader("Existing Documents")
+        for doc_id, filename, size, created_at in docs:
+            with st.expander(f"{filename} ({size} chars) - {created_at}"):
+                new_name = st.text_input(f"Rename {filename}", filename, key=f"rename_{doc_id}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Rename", key=f"btn_rename_{doc_id}"):
+                        db.update_document_name(doc_id, new_name)
+                        st.success("Filename updated!")
+                        st.rerun()
+                with col2:
+                    if st.button("Delete", key=f"btn_delete_{doc_id}"):
+                        db.delete_document(doc_id)
+                        st.warning(f"{filename} deleted!")
+                        st.rerun()
+
+                if st.checkbox("Show content", key=f"show_{doc_id}"):
+                    st.text(db.get_document_content(doc_id))
+    else:
+        st.info("No documents found.")
 
 # Clean up
 db.close()
