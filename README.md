@@ -1,72 +1,151 @@
-# Gmail Bot Setup
+# AutoTA Gmail Bot
 
-## Overview
+AutoTA is a Gmail automation bot that:
 
-This bot checks a Gmail inbox for unread emails every N minutes and sends automatic replies using the OpenAI API. It stores message data (including sender hashes, message bodies, and reply threads) in a SQLite database. All settings are configurable, and secrets are stored in a `.env` file.
+* Reads unread Gmail messages.
+* Uses OpenAI to generate human-like responses.
+* Replies to the sender while maintaining conversation context.
+* Stores conversation history and sender summaries in SQLite.
+* Provides a Streamlit dashboard for monitoring and editing stored data.
 
-## Setup Instructions
+---
 
-1. **Create a Google Cloud Project**
+## Features
 
-   * Visit [https://console.cloud.google.com/](https://console.cloud.google.com/)
-   * Create a new project (ensure it is under "No organization")
+* **Gmail API Integration** – Reads, sends, and marks emails as read.
+* **AI-Powered Replies** – Uses OpenAI to generate natural, Markdown-formatted responses.
+* **Sender Context Tracking** – Maintains a rolling summary for each sender.
+* **Dashboard** – Built with Streamlit for viewing messages, editing summaries, and running the bot manually.
 
-2. **Enable the Gmail API**
+---
 
-   * Navigate to "APIs & Services" > "Library"
-   * Search for "Gmail API" and click "Enable"
+## Project Structure
 
-3. **Create OAuth Credentials**
+```
+.
+├── get_refresh_token.py   # Script to generate Gmail OAuth token.json
+├── bot/
+│   ├── __init__.py
+│   ├── config.py          # Loads environment variables and paths
+│   ├── database.py        # SQLite wrapper for messages & senders
+│   ├── gmail_client.py    # Gmail API client wrapper
+│   ├── handler.py         # Main logic for handling each message
+│   ├── main.py            # Entry point to run the bot
+│   ├── message_parser.py  # Utility functions to parse emails
+│   └── responder.py       # OpenAI-powered email response generator
+└── dashboard/
+    └── app.py             # Streamlit-based dashboard UI
+```
 
-   * Go to "APIs & Services" > "Credentials"
-   * Click "Create Credentials" > "OAuth client ID"
-   * Choose "Desktop App" as the application type
-   * Click "Create" and note the `client_id` and `client_secret`
+---
 
-4. **Configure the OAuth Consent Screen**
+## Requirements
 
-   * Navigate to "OAuth consent screen"
-   * Choose "External"
-   * Fill out the app name and developer email
-   * Add `http://localhost` as an authorized domain (not strictly needed for desktop apps but may help)
-   * Add the Gmail address of the bot you want to monitor to the "Test users" list
-   * Save the configuration
+* Python 3.9+
+* Google Cloud project with Gmail API enabled
+* OpenAI API key
 
-5. **Get a Refresh Token**
+### Python Libraries
 
-   * Run the provided `get_refresh_token.py` script
-   * Log in with the Gmail account you want the bot to monitor
-   * The script will print an `ACCESS TOKEN` and `REFRESH TOKEN`
-   * Copy the `REFRESH TOKEN` into your `.env` file
+Install dependencies with:
 
-6. **Set Up Your `.env` File**
-   Create a file called `.env` in your project root and add:
+```bash
+pip install -r requirements.txt
+```
 
-   ```
-   GMAIL_CLIENT_ID=your-client-id
-   GMAIL_CLIENT_SECRET=your-client-secret
-   GMAIL_REFRESH_TOKEN=your-refresh-token
-   OPENAI_API_KEY=your-openai-api-key
-   ```
+Example `requirements.txt`:
 
-7. **Run the Bot**
-   Run the bot manually:
+```
+google-auth-oauthlib
+google-api-python-client
+openai
+python-dotenv
+email-reply-parser
+markdown2
+streamlit
+pandas
+```
 
-   ```bash
-   # from the project root...
-   python3 -m bot.main
-   ```
+---
 
-   This will:
+## Setup
 
-   * Fetch unread messages
-   * Store message data in SQLite
-   * Generate a reply
-   * Send the reply
-   * Mark the original message as read
+### 1. Enable Gmail API
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a project and enable the **Gmail API**.
+3. Create OAuth 2.0 credentials for a desktop app.
+4. Note your `client_id` and `client_secret`.
+
+### 2. Create `.env`
+
+Create a `.env` file in the root directory:
+
+```
+GMAIL_CLIENT_ID=your_client_id
+GMAIL_CLIENT_SECRET=your_client_secret
+OPENAI_API_KEY=your_openai_key
+BASE_URL=http://localhost:8000
+```
+
+### 3. Get OAuth Token
+
+Run the script to authenticate and generate `token.json`:
+
+```bash
+python get_refresh_token.py
+```
+
+This starts a local server on `http://localhost:8080` for the OAuth flow.
+
+---
+
+## Database
+
+SQLite database located at `shared/data.db`. The schema is applied automatically on first run using `shared/schema.sql`.
+
+---
+
+## Running the Bot
+
+Run the Gmail bot:
+
+```bash
+python -m bot.main
+```
+
+The bot will:
+
+* Fetch unread messages
+* Generate responses
+* Reply to messages
+* Mark them as read
+
+---
+
+## Dashboard
+
+Launch the Streamlit dashboard:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+### Dashboard Tabs
+
+* **Messages** – Browse message history and view threads.
+* **Senders** – View and manually edit sender summaries.
+* **Bot Control** – Run the bot manually from the UI.
+
+---
+
+## Logs
+
+The bot writes logs to `bot.log`.
+
+---
 
 ## Notes
 
-* Only the Gmail account used to log in during the OAuth process will be monitored.
-* To switch inboxes, rerun `get_refresh_token.py`, log in with a different Gmail account.
-* You must add each account to the test users list on the OAuth consent screen before it can be used.
+* For production, ensure `token.json` and `data.db` are secured.
+* `BASE_URL` is used in email footers for feedback links.
