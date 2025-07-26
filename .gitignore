@@ -10,3 +10,5 @@ dashboard/.DS_Store
 dashboard/debug.log
 dashboard/log.txt
 bot.log
+latex_documents
+token.json

@@ -1,14 +1,16 @@
-import os
-from openai import OpenAI
-from dotenv import load_dotenv
 import re
+from typing import List, Tuple
+from openai import OpenAI
+from bot.config import Config
 
-load_dotenv()
 
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+class Responder:
+    """
+    Handles generating AI-based email replies and formatting the
+    HTML footer for feedback links.
+    """
 
-HTML_HEADER = f"""
+    HTML_HEADER = f"""
 <!-- footer-start -->
 <div style="margin-bottom: 20px; padding: 12px; background-color: #e0e0e0; color: #333; font-size: 0.75rem; border-left: 4px solid #555;">
   <p style="margin: 0 0 6px 0;">
@@ -16,48 +18,66 @@ HTML_HEADER = f"""
   </p>
   <p style="margin: 0;">
     Was this response helpful?
-    <a href="{BASE_URL}/feedback?vote=up&message_id=MESSAGE_ID_PLACEHOLDER">👍 Yes</a>
-    <a href="{BASE_URL}/feedback?vote=down&message_id=MESSAGE_ID_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
+    <a href="{Config.BASE_URL}/feedback?vote=up&message_id=MESSAGE_ID_PLACEHOLDER">👍 Yes</a>
+    <a href="{Config.BASE_URL}/feedback?vote=down&message_id=MESSAGE_ID_PLACEHOLDER" style="margin-left: 10px;">👎 No</a>
   </p>
 </div>
 <!-- footer-end -->
 """
 
-# <a href="{BASE_URL}/feedback?thread_id=THREAD_ID_PLACEHOLDER&message_id=MESSAGE_ID_PLACEHOLDER&sender_id=SENDER_HASH_PLACEHOLDER" style="margin-left: 10px;">💬 View thread</a>
+    def __init__(self):
+        """
+        Initialize the OpenAI client using the API key from configuration.
+        """
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
-def generate_response(subject: str, thread_messages: list) -> str:
-    system_prompt = {
-        "role": "system",
-        "content": "You are a helpful teaching assistant who replies in polite HTML using <p>, <strong>, and <ul> as needed. Avoid inline styles. Sign off every email with \"Best, AutoTA\" in a new line."
-    }
+    def generate(self, subject: str, thread_messages: List[Tuple[str, str, int]]) -> str:
+        """
+        Generate an HTML-formatted reply by sending the conversation history
+        to OpenAI's chat completion endpoint.
 
-    messages = [system_prompt]
+        :param subject: The email subject line (for context if needed)
+        :param thread_messages: List of tuples (sender_id, body, is_from_bot)
+        :return: An HTML string containing the AI-generated reply content.
+        """
+        system_prompt = {
+            "role": "system",
+            "content": (
+                "You are a helpful teaching assistant who replies in polite HTML "
+                "using <p>, <strong>, and <ul> as needed. Avoid inline styles. "
+                "Sign off every email with 'Best, AutoTA' in a new line."
+            )
+        }
+        messages = [system_prompt]
 
-    for sender_id, body, is_from_bot in thread_messages:
-        role = "assistant" if is_from_bot else "user"
-        messages.append({
-            "role": role,
-            "content": body
-        })
+        # Build the chat history for OpenAI
+        for sender_id, body, is_from_bot in thread_messages:
+            role = "assistant" if is_from_bot else "user"
+            messages.append({"role": role, "content": body})
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            max_tokens=300,
-            temperature=0.7
-        )
-        content = response.choices[0].message.content
-        if isinstance(content, str):
-            return content.strip()
-        else:
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=300,
+                temperature=0.7,
+            )
+            content = response.choices[0].message.content
+            return content.strip() if isinstance(content, str) else (
+                "Thank you for your email. I'll get back to you shortly."
+            )
+
+        except Exception as e:
+            # Log error and return a fallback message
+            print("Error generating response:", e)
             return "Thank you for your email. I'll get back to you shortly."
-    except Exception as e:
-        print("Error generating response:", e)
-        return "Thank you for your email. I'll get back to you shortly."
 
+    def remove_previous_footer(self, body: str) -> str:
+        """
+        Strip out any existing disclaimer blocks to avoid duplicates.
 
-def remove_previous_footer(body: str) -> str:
-    """Remove any previously added disclaimer blocks from bot replies."""
-    pattern = re.compile(r'<!-- footer-start -->.*?<!-- footer-end -->', re.DOTALL)
-    return pattern.sub('', body).strip()
+        :param body: The raw HTML or text body of a previous reply
+        :return: The cleaned body without footer HTML.
+        """
+        pattern = re.compile(r'<!-- footer-start -->.*?<!-- footer-end -->', re.DOTALL)
+        return pattern.sub('', body).strip()

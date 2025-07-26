@@ -1,19 +1,15 @@
 from google_auth_oauthlib.flow import InstalledAppFlow
+import json
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 
-client_id = os.getenv("GMAIL_CLIENT_ID")
-client_secret = os.getenv("GMAIL_CLIENT_SECRET")
-
+# Use your client_id and client_secret from .env or credentials.json
 flow = InstalledAppFlow.from_client_config(
     {
         "installed": {
-            "client_id": client_id,
-            "client_secret": client_secret,
+            "client_id": os.getenv("GMAIL_CLIENT_ID"),
+            "client_secret": os.getenv("GMAIL_CLIENT_SECRET"),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token"
         }
@@ -22,5 +18,9 @@ flow = InstalledAppFlow.from_client_config(
 )
 
 creds = flow.run_local_server(port=8080, open_browser=False)
-print("ACCESS TOKEN:", creds.token)
-print("REFRESH TOKEN:", creds.refresh_token)
+
+# Save the credentials
+with open("token.json", "w") as token:
+    token.write(creds.to_json())
+
+print("token.json saved successfully!")

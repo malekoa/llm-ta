@@ -53,33 +53,20 @@ This bot checks a Gmail inbox for unread emails every N minutes and sends automa
    Run the bot manually:
 
    ```bash
-   python3 bot/main.py
+   # from the project root...
+   python3 -m bot.main
    ```
 
    This will:
 
    * Fetch unread messages
    * Store message data in SQLite
-   * Generate a reply (currently hardcoded)
+   * Generate a reply
    * Send the reply
    * Mark the original message as read
 
 ## Notes
 
 * Only the Gmail account used to log in during the OAuth process will be monitored.
-* To switch inboxes, rerun `get_refresh_token.py`, log in with a different Gmail account, and update the `.env` with the new `refresh_token`.
+* To switch inboxes, rerun `get_refresh_token.py`, log in with a different Gmail account.
 * You must add each account to the test users list on the OAuth consent screen before it can be used.
-
-## Troubleshooting
-
-* If you get a browser error like "Something went wrong" during OAuth, try using an incognito window or switch browsers.
-
-* If you see an error like `run_console` not found, upgrade your auth libraries:
-
-  ```bash
-  pip install --upgrade google-auth-oauthlib google-auth google-api-python-client
-  ```
-
-* If you want to manually authorize without a redirect, use `flow.run_console()` instead of `flow.run_local_server()` in `get_refresh_token.py`.
-
-You're now ready to run the Gmail bot and respond to messages automatically!
