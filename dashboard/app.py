@@ -1,10 +1,11 @@
+import atexit
 import streamlit as st
 import pandas as pd
 import time
 import subprocess
 import sys
 import os
-from helpers import latex_to_markdown
+from helpers import latex_to_markdown, chunk_text
 
 # Add project root to sys.path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -12,6 +13,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from bot.database import Database
+from bot.embeddings import embed_chunk
 
 # ---------- Helper Functions ----------
 def load_messages(db, limit=50):
@@ -46,18 +48,42 @@ def load_thread_messages(db, thread_id):
     rows = db.cursor.fetchall()
     return pd.DataFrame(rows, columns=["sender_id", "body", "is_from_bot", "timestamp"])
 
+def fetch_embeddings_for_document(db, doc_id):
+    chunks = db.list_document_chunks(doc_id)
+    for chunk_id, idx, size, content in chunks:
+        db.cursor.execute("SELECT embedding FROM document_chunks WHERE id = ?", (chunk_id,))
+        if db.cursor.fetchone()[0] is None:  # no embedding yet
+            embedding = embed_chunk(content)
+            db.update_chunk_embedding(chunk_id, embedding)
+    st.success("Embeddings fetched for all chunks!")
+
 # ---------- Streamlit App ----------
 st.set_page_config(page_title="AutoTA Dashboard", layout="wide")
 st.title("📬 AutoTA Gmail Bot Dashboard")
 
-# Initialize database
-db = Database()
+# --- Manage DB connection per session ---
+if "db" not in st.session_state:
+    st.session_state.db = Database()
 
-tab1, tab2, tab3, tab4 = st.tabs(["Messages", "Senders", "Bot Control", "Documents"])
+db = st.session_state.db
+
+# Close DB when Streamlit shuts down
+def close_db():
+    if "db" in st.session_state:
+        try:
+            st.session_state.db.close()
+        finally:
+            del st.session_state.db
+
+atexit.register(close_db)
+
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["Messages", "Senders", "Bot Control", "RAG Documents", "Document Chunks"]
+)
 
 # ---- Tab 1: Messages & Thread Viewer ----
 with tab1:
-    st.header("Recent Messages")
+    st.header("✉️ Recent Messages")
     messages_df = load_messages(db)
     if not messages_df.empty:
         st.dataframe(messages_df, use_container_width=True)
@@ -80,7 +106,7 @@ with tab1:
 
 # ---- Tab 2: Sender Summaries ----
 with tab2:
-    st.header("Sender Summaries")
+    st.header("👤 Sender Summaries")
     senders_df = load_senders(db)
     if not senders_df.empty:
         st.dataframe(senders_df, use_container_width=True)
@@ -102,7 +128,7 @@ with tab2:
 
 # ---- Tab 3: Bot Control ----
 with tab3:
-    st.header("Manual Bot Run")
+    st.header("🏁 Manual Bot Run")
     st.write("Click the button to run the bot immediately.")
     if st.button("Run Bot Now"):
         with st.spinner("Running bot..."):
@@ -117,7 +143,7 @@ with tab3:
                 st.error(result.stderr)
 
 with tab4:
-    st.header("📄 Document Management")
+    st.header("📄 RAG Documents")
 
     uploaded_files = st.file_uploader(
         "Upload one or more text/LaTeX files",
@@ -132,16 +158,27 @@ with tab4:
                     content = uploaded_file.read().decode("utf-8")
                     filename = uploaded_file.name
 
-                    # --- Check for LaTeX files ---
+                    # Convert LaTeX → Markdown if needed
                     if filename.endswith(".tex"):
                         st.info(f"Converting {filename} from LaTeX to Markdown...")
                         content = latex_to_markdown(content)
-                        filename = filename.replace(".tex", ".md")  # store as markdown
+                        filename = filename.replace(".tex", ".md")
                         st.success(f"{filename} saved (converted from LaTeX)!")
                     else:
                         st.success(f"{filename} saved successfully!")
 
+                    # Insert document
                     db.add_document(filename, content)
+
+                    # Get new document id
+                    doc_id = db.cursor.lastrowid
+
+                    # Chunk document
+                    chunks = chunk_text(content)
+                    for i, chunk in enumerate(chunks):
+                        db.add_chunk(doc_id, i, chunk)
+                    st.success(f"Document split into {len(chunks)} chunks.")
+
                 except Exception as e:
                     st.error(f"Error saving {uploaded_file.name}: {e}")
             st.rerun()
@@ -153,7 +190,7 @@ with tab4:
         for doc_id, filename, size, created_at in docs:
             with st.expander(f"{filename} ({size} chars) - {created_at}"):
                 new_name = st.text_input(f"Rename {filename}", filename, key=f"rename_{doc_id}")
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("Rename", key=f"btn_rename_{doc_id}"):
                         db.update_document_name(doc_id, new_name)
@@ -164,11 +201,63 @@ with tab4:
                         db.delete_document(doc_id)
                         st.warning(f"{filename} deleted!")
                         st.rerun()
+                with col3:
+                    # --- Check if any chunk is missing embedding ---
+                    db.cursor.execute(
+                        "SELECT COUNT(*) FROM document_chunks WHERE document_id = ? AND embedding IS NULL",
+                        (doc_id,)
+                    )
+                    missing_count = db.cursor.fetchone()[0]
+                    if missing_count == 0:
+                        st.info("✅ Embeddings already generated")
+                    else:
+                        if st.button(f"Fetch embeddings ({missing_count} missing)", key=f"embed_{doc_id}"):
+                            chunks = db.list_document_chunks(doc_id)
+                            progress = st.progress(0)
+                            for i, (chunk_id, idx, size, content) in enumerate(chunks):
+                                # Only embed chunks without embedding
+                                db.cursor.execute(
+                                    "SELECT embedding FROM document_chunks WHERE id = ?", (chunk_id,)
+                                )
+                                if db.cursor.fetchone()[0] is None and content.strip():
+                                    embedding = embed_chunk(content)
+                                    db.update_chunk_embedding(chunk_id, embedding)
+
+                                # Update progress bar
+                                progress.progress((i + 1) / len(chunks))
+                            st.success(f"Embeddings generated for {filename}")
+                            st.rerun()
 
                 if st.checkbox("Show content", key=f"show_{doc_id}"):
                     st.text(db.get_document_content(doc_id))
     else:
         st.info("No documents found.")
 
-# Clean up
-db.close()
+with tab5:
+    st.header("🔍 Document Chunks Viewer")
+
+    docs = db.list_documents()
+    if docs:
+        # Dropdown to select document
+        doc_options = {f"{filename} (ID: {doc_id})": doc_id for doc_id, filename, size, created_at in docs}
+        selected_doc = st.selectbox("Select a document", list(doc_options.keys()))
+        doc_id = doc_options[selected_doc]
+
+        chunks = db.list_document_chunks(doc_id)
+        if chunks:
+            st.write(f"Found **{len(chunks)} chunks** for this document.")
+
+            # Summary table
+            summary_df = pd.DataFrame(
+                [{"Chunk Index": idx, "Size (chars)": size} for (_, idx, size, _) in chunks]
+            )
+            st.dataframe(summary_df, use_container_width=True)
+
+            # Expanders to show chunk content
+            for chunk_id, idx, size, content in chunks:
+                with st.expander(f"Chunk {idx} ({size} chars)"):
+                    st.text(content)
+        else:
+            st.info("No chunks found for this document.")
+    else:
+        st.info("No documents found.")

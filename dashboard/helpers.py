@@ -1,6 +1,21 @@
 import subprocess
 import tempfile
 import os
+import tiktoken
+import re
+
+def chunk_text(text, chunk_size=200, overlap=100, model="text-embedding-3-small"):
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text)
+
+    chunks = []
+    start = 0
+    while start < len(tokens):
+        end = min(start + chunk_size, len(tokens))
+        chunk_tokens = tokens[start:end]
+        chunks.append(encoding.decode(chunk_tokens))
+        start += chunk_size - overlap
+    return chunks
 
 def latex_to_markdown(latex_content: str) -> str:
     # Create a temporary .tex file
@@ -20,6 +35,9 @@ def latex_to_markdown(latex_content: str) -> str:
         # Read the markdown result
         with open(tmp_md_path, "r") as f:
             markdown_content = f.read()
+
+        # Remove pandoc fenced divs like ::::: and :::
+        markdown_content = re.sub(r':{2,}', '', markdown_content)
     finally:
         # Clean up temp files
         os.remove(tmp_tex_path)

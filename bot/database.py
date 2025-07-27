@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import hashlib
 from typing import List, Tuple
@@ -132,11 +133,69 @@ class Database:
         self.cursor.execute("SELECT content FROM documents WHERE id = ?", (doc_id,))
         row = self.cursor.fetchone()
         return row[0] if row else ""
+    
+    def add_chunk(self, document_id: int, chunk_index: int, content: str):
+        self.cursor.execute(
+            "INSERT INTO document_chunks (document_id, chunk_index, content) VALUES (?, ?, ?)",
+            (document_id, chunk_index, content)
+        )
+        self.conn.commit()
+
+    def get_chunks_for_document(self, document_id: int):
+        self.cursor.execute(
+            "SELECT chunk_index, content FROM document_chunks WHERE document_id = ? ORDER BY chunk_index",
+            (document_id,)
+        )
+        return self.cursor.fetchall()
+    
+    def list_document_chunks(self, document_id: int):
+        """
+        Return all chunks for a given document, ordered by index.
+        """
+        self.cursor.execute(
+            """
+            SELECT id, chunk_index, length(content) as size, content
+            FROM document_chunks
+            WHERE document_id = ?
+            ORDER BY chunk_index
+            """,
+            (document_id,)
+        )
+        return self.cursor.fetchall()
+    
+    def update_chunk_embedding(self, chunk_id: int, embedding: list[float]):
+        if embedding is None:
+            embedding_json = None
+        else:
+            embedding_json = json.dumps(embedding)
+        self.cursor.execute(
+            "UPDATE document_chunks SET embedding = ? WHERE id = ?",
+            (embedding_json, chunk_id)
+        )
+        self.conn.commit()
+
+    def document_has_embeddings(self, document_id: int) -> bool:
+        self.cursor.execute(
+            """
+            SELECT COUNT(*) 
+            FROM document_chunks 
+            WHERE document_id = ? 
+            AND (embedding IS NULL OR embedding = '')
+            """,
+            (document_id,)
+        )
+        missing_count = self.cursor.fetchone()[0]
+        return missing_count == 0
 
     def close(self) -> None:
         """
         Close the database connection when done to free resources.
+        Ensures WAL is checkpointed so no -wal/-shm files remain.
         """
+        try:
+            self.conn.execute("PRAGMA wal_checkpoint(FULL);")
+        except Exception as e:
+            print(f"Error checkpointing WAL: {e}")
         self.conn.close()
 
     def __enter__(self):
