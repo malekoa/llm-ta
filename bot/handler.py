@@ -68,7 +68,11 @@ class MessageHandler:
             (None, f"Sender summary:\n{current_summary}", 0),
             (None, user_input, 0)
         ]
-        response_markdown = self.responder.generate(subject, summary_context)
+        response_markdown = self.responder.generate(
+            subject=subject,
+            sender_summary=current_summary,
+            latest_message=user_input
+        )
 
         logging.info(
             f"AI Markdown response generated for {sender_email}: "

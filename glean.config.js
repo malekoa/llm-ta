@@ -34,15 +34,16 @@ module.exports = {
       "dashboard/views/dashboard/feedback.php"
     ],
     "bot": [
+      "bot/__init__.py",
       "bot/config.py",
       "bot/database.py",
+      "bot/embeddings.py",
       "bot/gmail_client.py",
+      "bot/handler.py",
       "bot/main.py",
       "bot/message_parser.py",
       "bot/responder.py",
-      "bot/__init__.py",
-      "bot/handler.py",
-      "shared/schema.sql"
+      "bot/search.py"
     ]
   }
 };

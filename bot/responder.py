@@ -1,15 +1,12 @@
+# bot/responder.py
 import re
 from typing import List, Tuple
 from openai import OpenAI
 from bot.config import Config
-
+from bot.database import Database
+from bot.search import search_documents
 
 class Responder:
-    """
-    Handles generating AI-based email replies and formatting the
-    HTML footer for feedback links.
-    """
-
     HTML_HEADER = f"""
 <!-- footer-start -->
 <div style="margin-bottom: 20px; padding: 12px; background-color: #e0e0e0; color: #333; font-size: 0.75rem; border-left: 4px solid #555;">
@@ -26,38 +23,37 @@ class Responder:
 """
 
     def __init__(self):
-        """
-        Initialize the OpenAI client using the API key from configuration.
-        """
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
-    def generate(self, subject: str, thread_messages: List[Tuple[str, str, int]]) -> str:
+    def generate(self, subject: str, sender_summary: str, latest_message: str) -> str:
         """
-        Generate a Markdown-formatted reply by sending the conversation history
-        to OpenAI's chat completion endpoint.
+        Generate a Markdown reply using sender summary, latest user message,
+        and relevant document chunks.
         """
+        # --- Search knowledge base ---
+        with Database() as db:
+            results = search_documents(db, latest_message, top_k=5)
+
+        rag_context = "\n".join(f"- {c}" for _, c, _ in results) if results else "No relevant context found."
+
+        # --- Compose system prompt ---
         system_prompt = {
             "role": "system",
             "content": (
-                """You are AutoTA, a helpful and friendly teaching assistant. 
-Reply in natural, conversational language like a real human assistant would. 
-Use contractions when appropriate (e.g., "I'm", "you're"), acknowledge the sender's context, and keep sentences concise and approachable. 
-
-Respond in Markdown format suitable for email (no HTML or email headers). 
-Use headings, bullet points, and emphasis only when they improve clarity. 
-Be empathetic and polite, but not overly formal. 
-Avoid generic filler phrases like "as an AI language model." 
-
-Sign off each email with: 
-
-Best,  
-AutoTA"""
-            )
+                "You are AutoTA, a helpful and friendly teaching assistant.\n"
+                "Use the knowledge base when relevant, but avoid hallucinations.\n\n"
+                f"Sender summary:\n{sender_summary}\n\n"
+                f"Relevant document excerpts:\n{rag_context}\n\n"
+                "Respond concisely and naturally. "
+                "Sign off with: Best,  \nAutoTA"
+            ),
         }
-        messages = [system_prompt]
-        for sender_id, body, is_from_bot in thread_messages:
-            role = "assistant" if is_from_bot else "user"
-            messages.append({"role": role, "content": body})
+
+        # --- Messages: Only latest user message ---
+        messages = [
+            system_prompt,
+            {"role": "user", "content": latest_message}
+        ]
 
         try:
             response = self.client.chat.completions.create(
@@ -66,45 +62,28 @@ AutoTA"""
                 max_tokens=300,
                 temperature=0.7,
             )
-            content = response.choices[0].message.content
-            return content.strip() if isinstance(content, str) else (
-                "Thank you for your email.\n\nBest,\nAutoTA"
-            )
+            return response.choices[0].message.content.strip()
         except Exception as e:
             print("Error generating response:", e)
             return "Thank you for your email.\n\nBest,\nAutoTA"
 
     def remove_previous_footer(self, body: str) -> str:
-        """
-        Strip out any existing disclaimer blocks to avoid duplicates.
-
-        :param body: The raw HTML or text body of a previous reply
-        :return: The cleaned body without footer HTML.
-        """
         pattern = re.compile(r'<!-- footer-start -->.*?<!-- footer-end -->', re.DOTALL)
         return pattern.sub('', body).strip()
 
     def summarize_sender(self, current_summary: str, new_message: str) -> str:
-        """
-        Update a rolling summary of a sender's style, tone, and recent topics
-        based on their latest message.
-        """
         system_prompt = {
             "role": "system",
             "content": (
                 "You are a helpful assistant that maintains concise summaries "
-                "of individual email senders. These summaries capture:"
-                "\n- The sender's tone and style"
-                "\n- Recurring themes or topics they mention"
-                "\n- Any relevant context about ongoing conversations"
-                "\nKeep the summary under 200 words and use a neutral tone."
+                "of individual email senders. Keep under 200 words."
             ),
         }
         messages = [
             system_prompt,
             {"role": "user", "content": f"Current sender summary:\n{current_summary}"},
-            {"role": "user", "content": f"New message from this sender:\n{new_message}"},
-            {"role": "user", "content": "Update the sender summary accordingly."},
+            {"role": "user", "content": f"New message:\n{new_message}"},
+            {"role": "user", "content": "Update the summary."},
         ]
         try:
             response = self.client.chat.completions.create(
@@ -116,5 +95,4 @@ AutoTA"""
             return response.choices[0].message.content.strip()
         except Exception as e:
             print("Error summarizing sender:", e)
-            # fallback if no existing summary
             return current_summary or new_message
