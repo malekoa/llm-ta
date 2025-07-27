@@ -34,7 +34,13 @@ class Responder:
         with Database() as db:
             results = search_documents(db, latest_message, top_k=5)
 
-        rag_context = "\n".join(f"- {c}" for _, c, _ in results) if results else "No relevant context found."
+        if results:
+            rag_context = "\n".join(f"- {content}" for _, content, _, _ in results)
+            doc_names = sorted({filename for _, _, filename, _ in results})
+            docs_line = "Documents consulted: " + ", ".join(doc_names)
+        else:
+            rag_context = "No relevant context found."
+            docs_line = ""
 
         # --- Compose system prompt ---
         system_prompt = {
@@ -62,7 +68,8 @@ class Responder:
                 max_tokens=300,
                 temperature=0.7,
             )
-            return response.choices[0].message.content.strip()
+            reply = response.choices[0].message.content.strip()
+            return reply + ("\n\n---\n" + docs_line if docs_line else "")
         except Exception as e:
             print("Error generating response:", e)
             return "Thank you for your email.\n\nBest,\nAutoTA"
@@ -75,8 +82,11 @@ class Responder:
         system_prompt = {
             "role": "system",
             "content": (
-                "You are a helpful assistant that maintains concise summaries "
-                "of individual email senders. Keep under 200 words."
+                "You are an assistant that keeps a running summary of each email sender.\n"
+                "Update the summary based on the new message while preserving important "
+                "information from the existing summary.\n"
+                "Only remove information if it is clearly outdated or incorrect.\n"
+                "Keep the summary concise (under 200 words) and neutral."
             ),
         }
         messages = [
