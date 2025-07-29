@@ -64,6 +64,32 @@ def tail(filepath, lines=50):
             return ''.join(f.readlines()[-lines:])
     except FileNotFoundError:
         return "Log file not found."
+    
+def verify_user(username, password):
+    with Database() as db:
+        db.ensure_user_table()
+        return db.verify_user(username, password)
+
+
+# ---------- Simple Auth ----------
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.set_page_config(page_title="AutoTA Dashboard Login", layout="centered")
+    st.title("🔒 AutoTA Dashboard Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if verify_user(username, password):
+            st.session_state.authenticated = True
+            st.session_state.username = username
+            st.success("Logged in successfully!")
+            st.rerun()
+        else:
+            st.error("Invalid username or password")
+    st.stop()
 
 # ---------- Streamlit App ----------
 st.set_page_config(page_title="AutoTA Dashboard", layout="wide")

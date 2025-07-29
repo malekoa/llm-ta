@@ -3,6 +3,7 @@ import sqlite3
 import hashlib
 from typing import List, Tuple
 from bot.config import Config
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 class Database:
@@ -197,6 +198,53 @@ class Database:
         except Exception as e:
             print(f"Error checkpointing WAL: {e}")
         self.conn.close()
+
+    def ensure_user_table(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        self.conn.commit()
+
+
+    def add_user(self, username: str, password: str):
+        try:
+            password_hash = generate_password_hash(password)
+            self.cursor.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (username, password_hash)
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def list_users(self):
+        self.cursor.execute("SELECT id, username, created_at FROM users ORDER BY id")
+        return self.cursor.fetchall()
+
+    def update_password(self, username: str, new_password: str):
+        password_hash = generate_password_hash(new_password)
+        self.cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (password_hash, username)
+        )
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+
+    def delete_user(self, username: str):
+        self.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+
+    def verify_user(self, username: str, password: str) -> bool:
+        self.cursor.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+        row = self.cursor.fetchone()
+        return row and check_password_hash(row[0], password)
 
     def __enter__(self):
         return self
