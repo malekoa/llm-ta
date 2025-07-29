@@ -50,7 +50,7 @@ class Responder:
                 "Use the knowledge base when relevant, but avoid hallucinations.\n\n"
                 f"Sender summary:\n{sender_summary}\n\n"
                 f"Relevant document excerpts:\n{rag_context}\n\n"
-                "Respond concisely and naturally. "
+                "Respond concisely and naturally. Explain rather than show. Answer without using LaTeX format."
                 "Sign off with: Best,  \nAutoTA"
             ),
         }
@@ -65,7 +65,7 @@ class Responder:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=300,
+                max_tokens=500,
                 temperature=0.7,
             )
             reply = response.choices[0].message.content.strip()

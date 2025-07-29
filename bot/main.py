@@ -8,7 +8,7 @@ from bot.handler import MessageHandler
 
 logging.basicConfig(
     filename='bot.log',
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -20,11 +20,15 @@ def main():
     handler = MessageHandler(gmail, db, responder)
 
     # Process all unread messages
-    for msg in gmail.list_unread():
-        try:
-            handler.handle_single(msg['id'])
-        except Exception:
-            logging.exception(f"Failed to process message {msg.get('id')}")
+    unread_messages = gmail.list_unread()
+    if not unread_messages:
+        logging.info("No unread messages found.")
+    else:
+        for msg in unread_messages:
+            try:
+                handler.handle_single(msg['id'])
+            except Exception:
+                logging.exception(f"Failed to process message {msg.get('id')}")
 
 if __name__ == '__main__':
     main()

@@ -57,6 +57,14 @@ def fetch_embeddings_for_document(db, doc_id):
             db.update_chunk_embedding(chunk_id, embedding)
     st.success("Embeddings fetched for all chunks!")
 
+def tail(filepath, lines=50):
+    """Return the last `lines` of the given file."""
+    try:
+        with open(filepath, 'r') as f:
+            return ''.join(f.readlines()[-lines:])
+    except FileNotFoundError:
+        return "Log file not found."
+
 # ---------- Streamlit App ----------
 st.set_page_config(page_title="AutoTA Dashboard", layout="wide")
 st.title("📬 AutoTA Gmail Bot Dashboard")
@@ -129,18 +137,24 @@ with tab2:
 # ---- Tab 3: Bot Control ----
 with tab3:
     st.header("🏁 Manual Bot Run")
-    st.write("Click the button to run the bot immediately.")
     if st.button("Run Bot Now"):
+        log_path = os.path.join(ROOT_DIR, "bot.log")
+        prev_size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
+
         with st.spinner("Running bot..."):
-            result = subprocess.run(
-                ["python", "-m", "bot.main"],
-                capture_output=True,
-                text=True
-            )
-            st.subheader("Bot Output")
-            st.text(result.stdout)
-            if result.stderr:
-                st.error(result.stderr)
+            subprocess.run(["python", "-m", "bot.main"])
+            time.sleep(0.5)
+
+        st.subheader("Bot Log (new lines after run)")
+        with open(log_path, "r") as f:
+            f.seek(prev_size)
+            new_lines = f.read()
+        st.code(new_lines if new_lines else "(No new log entries)", language="")
+
+    with st.expander("📜 View Latest Logs", expanded=False):
+        num_lines = st.slider("Lines to show", 50, 500, 200, step=50)
+        log_output = tail(os.path.join(ROOT_DIR, "bot.log"), lines=num_lines)
+        st.code(log_output, language="")
 
 with tab4:
     st.header("📄 RAG Documents")
@@ -174,7 +188,7 @@ with tab4:
                     doc_id = db.cursor.lastrowid
 
                     # Chunk document
-                    chunks = chunk_text(content)
+                    chunks = chunk_text(content, filename=filename)
                     for i, chunk in enumerate(chunks):
                         db.add_chunk(doc_id, i, chunk)
                     st.success(f"Document split into {len(chunks)} chunks.")

@@ -35,10 +35,10 @@ class MessageHandler:
         self.responder = responder
 
     def handle_single(self, msg_id: str):
-        logging.info(f"Handling message {msg_id}")
+        # Fetch raw message
         raw_msg = self.gmail.get_raw(msg_id)
 
-        # Decode raw Gmail message into MIME
+        # Decode and parse
         mime_msg, meta = decode_raw_message(raw_msg)
         timestamp = int(meta.get("internalDate", "0")) // 1000
         thread_id = meta['threadId']
@@ -46,43 +46,32 @@ class MessageHandler:
         sender_id = self.db.hash_email(sender_email)
         subject = extract_subject(mime_msg)
 
-        # Extract and normalize user input
+        # Extract user input
         body_raw = extract_body(mime_msg)
         user_input = EmailReplyParser.parse_reply(body_raw)
         user_input = normalize_soft_linebreaks(user_input)
 
-        logging.info(
-            f"Received email from {sender_email} (thread: {thread_id}) "
-            f"subject: {subject}, body preview: {truncate_for_log(user_input)}"
-        )
+        # Log only sender + thread info
+        logging.info(f"New email received from {sender_email} (thread {thread_id})")
 
-        # Save the original user message
+        # Save message
         self.db.save_message(
             msg_id, thread_id, sender_email, subject,
             user_input, is_from_bot=0, timestamp=timestamp
         )
 
-        # --- Use old summary for the response ---
+        # Generate AI response
         current_summary = self.db.get_sender_summary(sender_id)
-        summary_context = [
-            (None, f"Sender summary:\n{current_summary}", 0),
-            (None, user_input, 0)
-        ]
         response_markdown = self.responder.generate(
             subject=subject,
             sender_summary=current_summary,
             latest_message=user_input
         )
 
-        logging.info(
-            f"AI Markdown response generated for {sender_email}: "
-            f"{truncate_for_log(response_markdown)}"
-        )
-
         # Convert Markdown → HTML
         response_html = markdown2.markdown(response_markdown)
 
-        # Prepare bot reply (HTML footer + cleaned previous footers)
+        # Prepare bot reply
         bot_msg_id = msg_id + "_bot"
         reply_html = (
             self.responder.HTML_HEADER
@@ -91,24 +80,24 @@ class MessageHandler:
             + self.responder.remove_previous_footer(response_html)
         )
 
-        # Save bot message (store Markdown, not HTML)
+        # Save bot message
         self.db.save_message(
             bot_msg_id, thread_id, "me", f"Re: {subject}",
             response_markdown, is_from_bot=1,
             timestamp=int(time.time())
         )
 
-        # Send the reply and mark original as read
-        self._send_reply(thread_id, sender_email, reply_html,
-                        mime_msg['Message-ID'], subject)
+        # Send and mark as read
+        self._send_reply(thread_id, sender_email, reply_html, mime_msg['Message-ID'], subject)
         self.gmail.mark_as_read(msg_id)
-        logging.info(f"Reply sent and message {msg_id} marked as read.")
 
-        # --- Update the sender summary after sending ---
+        # Log only summary action
+        logging.info(f"Response sent to {sender_email}")
+
+        # Update sender summary
         new_summary = self.responder.summarize_sender(current_summary, user_input)
+        logging.info(f"Updated summary for {sender_email}")
         self.db.update_sender_summary(sender_id, new_summary)
-
-
 
     def _send_reply(self, thread_id, to_email, html_body, original_msg_id, subject):
         if not original_msg_id.startswith('<'):

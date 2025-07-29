@@ -4,7 +4,7 @@ import os
 import tiktoken
 import re
 
-def chunk_text(text, chunk_size=200, overlap=100, model="text-embedding-3-small"):
+def chunk_text(text, chunk_size=200, overlap=100, model="text-embedding-3-small", filename=None):
     encoding = tiktoken.encoding_for_model(model)
     tokens = encoding.encode(text)
 
@@ -13,7 +13,11 @@ def chunk_text(text, chunk_size=200, overlap=100, model="text-embedding-3-small"
     while start < len(tokens):
         end = min(start + chunk_size, len(tokens))
         chunk_tokens = tokens[start:end]
-        chunks.append(encoding.decode(chunk_tokens))
+        chunk_text = encoding.decode(chunk_tokens)
+        # prepend filename header
+        if filename:
+            chunk_text = f"Filename: {filename}\n\n{chunk_text}"
+        chunks.append(chunk_text)
         start += chunk_size - overlap
     return chunks
 
