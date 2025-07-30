@@ -245,6 +245,17 @@ class Database:
         self.cursor.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
         row = self.cursor.fetchone()
         return row and check_password_hash(row[0], password)
+    
+    def add_vote(self, message_id: str, vote: str):
+        """
+        Insert or update a vote for a given message_id.
+        """
+        self.cursor.execute("""
+            INSERT INTO votes (message_id, vote)
+            VALUES (?, ?)
+            ON CONFLICT(message_id) DO UPDATE SET vote = excluded.vote
+        """, (message_id, vote))
+        self.conn.commit()
 
     def __enter__(self):
         return self

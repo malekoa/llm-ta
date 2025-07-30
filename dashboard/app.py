@@ -19,13 +19,16 @@ from bot.embeddings import embed_chunk
 def load_messages(db, limit=50):
     db.cursor.execute("""
         SELECT messages.thread_id,
+               messages.id AS message_id,
                messages.subject,
                messages.body,
                messages.is_from_bot,
                messages.timestamp,
-               senders.summary AS sender_summary
+               senders.summary AS sender_summary,
+               votes.vote AS vote
         FROM messages
         LEFT JOIN senders ON messages.sender_id = senders.id
+        LEFT JOIN votes ON votes.message_id = messages.id
         ORDER BY messages.timestamp DESC
         LIMIT ?
     """, (limit,))
@@ -129,8 +132,9 @@ with tab1:
             thread_df = load_thread_messages(db, thread_id)
             for _, row in thread_df.iterrows():
                 role = "🤖 Bot" if row["is_from_bot"] else "👤 User"
+                vote_display = f" (Vote: {row.get('vote', 'none')})" if row["is_from_bot"] else ""
                 st.markdown(
-                    f"**{role} ({row['sender_id']})**  "
+                    f"**{role} ({row['sender_id']}){vote_display}**  "
                     f"*({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(row['timestamp']))})*"
                 )
                 st.markdown(row["body"])
