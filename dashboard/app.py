@@ -6,6 +6,8 @@ import subprocess
 import sys
 import os
 from helpers import latex_to_markdown, chunk_text
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 # Add project root to sys.path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -104,6 +106,22 @@ if "db" not in st.session_state:
 
 db = st.session_state.db
 
+# ---- Initialize Scheduler ----
+if "scheduler" not in st.session_state:
+    st.session_state.scheduler = BackgroundScheduler()
+    st.session_state.scheduler.start()
+    st.session_state.job = None
+
+# Load saved interval from DB on first run
+if "interval_minutes" not in st.session_state:
+    db.ensure_settings_table()
+    saved_interval = db.get_setting("interval_minutes", "120")
+    st.session_state.interval_minutes = int(saved_interval)
+
+def run_bot():
+    subprocess.run(["python", "-m", "bot.main"])
+
+
 # Close DB when Streamlit shuts down
 def close_db():
     if "db" in st.session_state:
@@ -115,7 +133,7 @@ def close_db():
 atexit.register(close_db)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["Messages", "Senders", "Bot Control", "RAG Documents", "Document Chunks"]
+    ["Messages", "Senders", "Bot Scheduler", "RAG Documents", "Document Chunks"]
 )
 
 # ---- Tab 1: Messages & Thread Viewer ----
@@ -166,7 +184,41 @@ with tab2:
 
 # ---- Tab 3: Bot Control ----
 with tab3:
-    st.header("🏁 Manual Bot Run")
+    st.header("🏁 Bot Scheduler")
+
+    # Current values
+    current_hours = st.session_state.interval_minutes // 60
+    current_minutes = st.session_state.interval_minutes % 60
+
+    col1, col2 = st.columns(2)
+    with col1:
+        hours = st.number_input("Hours", 0, 24, current_hours)
+    with col2:
+        minutes = st.number_input("Minutes", 0, 59, current_minutes)
+
+    total_minutes = hours * 60 + minutes
+    st.caption(f"Selected interval: **{hours}h {minutes}m**")
+
+    if st.button("Save Schedule"):
+        st.session_state.interval_minutes = total_minutes
+        db.set_setting("interval_minutes", str(total_minutes))
+
+        if st.session_state.job:
+            st.session_state.scheduler.remove_job(st.session_state.job.id)
+
+        if total_minutes > 0:
+            st.session_state.job = st.session_state.scheduler.add_job(
+                run_bot,
+                'interval',
+                minutes=total_minutes,
+                id='bot_job',
+                replace_existing=True
+            )
+            st.success(f"Updated schedule: every {hours}h {minutes}m")
+        else:
+            st.session_state.job = None
+            st.warning("Automatic schedule disabled (0 interval).")
+
     if st.button("Run Bot Now"):
         log_path = os.path.join(ROOT_DIR, "bot.log")
         prev_size = os.path.getsize(log_path) if os.path.exists(log_path) else 0

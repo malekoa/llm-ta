@@ -257,6 +257,28 @@ class Database:
         """, (message_id, vote))
         self.conn.commit()
 
+    def ensure_settings_table(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        self.conn.commit()
+
+    def get_setting(self, key: str, default=None):
+        self.cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = self.cursor.fetchone()
+        return row[0] if row else default
+
+    def set_setting(self, key: str, value: str):
+        self.cursor.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?)"
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value)
+        )
+        self.conn.commit()
+
     def __enter__(self):
         return self
 

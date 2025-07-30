@@ -12,4 +12,4 @@ class Config:
     GMAIL_CLIENT_SECRET = os.getenv("GMAIL_CLIENT_SECRET")
     GMAIL_REFRESH_TOKEN = os.getenv("GMAIL_REFRESH_TOKEN")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
