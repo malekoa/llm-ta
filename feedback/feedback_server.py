@@ -1,10 +1,13 @@
 import sys, os
+from dotenv import load_dotenv
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from bot.database import Database
 from flask import Flask, request
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -30,4 +33,5 @@ def feedback():
     """
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "t")
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
