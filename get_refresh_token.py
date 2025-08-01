@@ -1,6 +1,8 @@
 from google_auth_oauthlib.flow import InstalledAppFlow
-import json
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 
