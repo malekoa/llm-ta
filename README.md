@@ -62,6 +62,68 @@ pip install -r requirements.txt
 
 ---
 
+## Generating Gmail Token Locally (Required Before Droplet Setup)
+
+`token.json` **must** be generated on your local machine before running the droplet setup script.
+
+### **Step 1: Clone the repository locally (if not already)**
+
+```bash
+git clone <your_repo_url>
+cd <your_repo_directory>
+```
+
+### **Step 2: Set up a Python virtual environment locally**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### **Step 3: Set up `.env` locally**
+
+Edit/create `.env` in the project root:
+
+```env
+GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=your-client-secret
+```
+
+> You can find these values in your [Google Cloud Console](https://console.cloud.google.com/) under **APIs & Services ➔ Credentials**. You must enable the Gmail API and, if it's your first OAuth credential, configure a consent screen to perform this step. To do this, follow the instructions under local development below.
+
+### **Step 4: Run the token generation script**
+
+```bash
+python get_refresh_token.py
+```
+
+* This opens a browser window (or provides a URL) for Google login.
+* Sign in with the Gmail account you want to use.
+* Grant access to Gmail API.
+* On success, a `token.json` file will appear in the project root.
+
+#### ⚠️ Use chrome to access this link if possible, other browsers seem to give issues with this step.
+
+### **Step 5: Verify `token.json` locally**
+
+Ensure it exists and has fields like `refresh_token` and `client_id`.
+
+### **Step 6: Copy `token.json` to the droplet**
+
+Replace placeholders as needed:
+
+```bash
+scp token.json <your-ssh-user>@<your-droplet-ip>:/path/to/project/
+```
+
+**OR: Just manually copy and paste the contents into a `token.json` file in the project root on the droplet.**
+
+Now the droplet setup script (`setup.sh`) can run successfully because it checks for `token.json` before proceeding.
+
+---
+
 ## Setup & Local Development
 
 ### 1. Enable Gmail API
@@ -70,6 +132,15 @@ pip install -r requirements.txt
 2. Create a project and enable the **Gmail API**.
 3. Create OAuth 2.0 credentials for a desktop app.
 4. Note your `client_id` and `client_secret`.
+
+#### ⚠️ You may be asked to configure a consent screen:
+
+If this is your first OAuth client, Google will ask you to configure the consent screen:
+
+1. Choose External.
+2. Set an app name (e.g., AutoTA Bot).
+3. Enter your email.
+4. Save (you can skip scopes for now).
 
 ### 2. Create `.env`
 
@@ -82,15 +153,9 @@ OPENAI_API_KEY=your_openai_key
 BASE_URL=http://localhost:5000
 ```
 
-### 3. Get OAuth Token
+### 3. Generate Gmail Token (Locally)
 
-Run:
-
-```bash
-python get_refresh_token.py
-```
-
-This authenticates and creates `token.json` for Gmail API access.
+Follow the [detailed token generation guide](#generating-gmail-token-locally-required-before-droplet-setup).
 
 ### 4. Initialize & Manage Users
 
@@ -126,7 +191,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Run the Streamlit Dashboard (initially for testing)
+### 2. Copy `token.json` to the droplet (if not already)
+
+Follow [token generation guide](#generating-gmail-token-locally-required-before-droplet-setup).
+
+### 3. Run the Streamlit Dashboard (initially for testing)
 
 ```bash
 streamlit run dashboard/app.py --server.address 0.0.0.0 --server.port 8501
@@ -134,19 +203,11 @@ streamlit run dashboard/app.py --server.address 0.0.0.0 --server.port 8501
 
 (If you're using the SSH extension with VSCode, then it should let you view it locally at this point using port forwarding.)
 
-### 3. Add a User
+### 4. Add a User
 
 ```bash
 python manage_users.py add --username admin --password <your-password>
 ```
-
-### 4. Generate Gmail Token
-
-```bash
-python get_refresh_token.py
-```
-
-This creates `token.json` for Gmail API access.
 
 ### 5. Test the Bot
 
