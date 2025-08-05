@@ -35,6 +35,16 @@ class MessageHandler:
         self.responder = responder
 
     def handle_single(self, msg_id: str):
+        # --- Global daily cap check ---
+        daily_cap = int(self.db.get_setting("daily_response_limit", "0"))
+        if daily_cap > 0 and self.db.count_responses_today() >= daily_cap:
+            logging.warning(
+                "Daily response limit reached (%d); skipping message %s",
+                daily_cap, msg_id
+            )
+            # Optionally notify the user or just mark read:
+            self.gmail.mark_as_read(msg_id)
+            return
         # Fetch raw message
         raw_msg = self.gmail.get_raw(msg_id)
 

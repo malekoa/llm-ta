@@ -217,6 +217,22 @@ with tab3:
             db.set_setting("plus_address", new_plus.strip())
             st.success("Plus address filter updated!")
 
+    with st.expander("🌐 Global Daily Response Limit", expanded=False):
+        # Fetch current value (0 = unlimited)
+        current_global_limit = int(db.get_setting("daily_response_limit", "0"))
+
+        new_global_limit = st.number_input(
+            "Max replies per day (0 = unlimited):",
+            min_value=0,
+            value=current_global_limit,
+            help="Once this many replies have been sent since UTC midnight, all new messages will be skipped."
+        )
+
+        if st.button("Save Global Response Limit"):
+            db.set_setting("daily_response_limit", str(new_global_limit))
+            st.success(f"Global daily response limit set to {new_global_limit}.")
+            # Update session state if you cache it elsewhere
+
     # --- Schedule Settings ---
     with st.expander("⏱️ Bot Schedule", expanded=True):
         current_hours = st.session_state.interval_minutes // 60

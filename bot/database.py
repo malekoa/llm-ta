@@ -277,6 +277,11 @@ class Database:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             ("daily_sender_limit", "10")
         )
+        # Overall daily response cap: 0 = unlimited
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("daily_response_limit", "0")
+        )
         # (Blank means no filter)
         self.cursor.execute(
         "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
@@ -338,6 +343,19 @@ class Database:
             ON CONFLICT(thread_id) DO UPDATE SET summary = excluded.summary
         """, (thread_id, new_summary))
         self.conn.commit()
+
+    def count_responses_today(self) -> int:
+        """
+        Count how many bot responses (is_from_bot=1) have been sent
+        since the start of the current UTC day.
+        """
+        # seconds since epoch of midnight UTC
+        start_of_day = int(time.time() // 86400 * 86400)
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM messages WHERE is_from_bot = 1 AND timestamp >= ?",
+            (start_of_day,)
+        )
+        return self.cursor.fetchone()[0]
 
     def __enter__(self):
         return self
