@@ -7,6 +7,7 @@ import sys
 import os
 from helpers import latex_to_markdown, chunk_text
 from apscheduler.schedulers.background import BackgroundScheduler
+from bot.responder import Responder
 
 
 # Add project root to sys.path
@@ -132,8 +133,8 @@ def close_db():
 
 atexit.register(close_db)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["Messages", "Senders", "Bot Settings", "RAG Documents", "Document Chunks"]
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    ["Messages", "Senders", "Bot Settings", "RAG Documents", "Document Chunks", "Chat Bot"]
 )
 
 # ---- Tab 1: Messages & Thread Viewer ----
@@ -405,3 +406,49 @@ with tab5:
             st.info("No chunks found for this document.")
     else:
         st.info("No documents found.")
+
+# ---- Tab 6: Chat with Bot ----
+tab6 = st.tabs(["Chat with Bot"])[0]
+
+with tab6:
+    st.header("💬 Chat with Bot")
+
+    # Ensure Responder is in session
+    if "responder" not in st.session_state:
+        from bot.responder import Responder
+        st.session_state.responder = Responder()
+
+    # Initialize session chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    # Clear chat button
+    if st.button("Clear Chat History"):
+        st.session_state.chat_history = []
+        st.success("Chat history cleared!")
+        st.rerun()
+
+    # Display chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Input for user query
+    user_query = st.chat_input("Ask me anything...")
+    if user_query:
+        # Append user message
+        st.session_state.chat_history.append({"role": "user", "content": user_query})
+
+        # Generate bot reply (no sender summary for dashboard chat)
+        with st.spinner("Thinking..."):
+            reply = st.session_state.responder.generate(
+                subject="Dashboard Chat",
+                sender_summary="",
+                latest_message=user_query
+            )
+
+        # Append bot reply
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+
+        # Rerun to refresh UI
+        st.rerun()
