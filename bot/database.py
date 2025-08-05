@@ -326,6 +326,19 @@ class Database:
         )
         self.conn.commit()
 
+    def get_thread_summary(self, thread_id: str) -> str:
+        self.cursor.execute("SELECT summary FROM thread_summaries WHERE thread_id = ?", (thread_id,))
+        row = self.cursor.fetchone()
+        return row[0] if row else ""
+
+    def update_thread_summary(self, thread_id: str, new_summary: str):
+        self.cursor.execute("""
+            INSERT INTO thread_summaries (thread_id, summary)
+            VALUES (?, ?)
+            ON CONFLICT(thread_id) DO UPDATE SET summary = excluded.summary
+        """, (thread_id, new_summary))
+        self.conn.commit()
+
     def __enter__(self):
         return self
 

@@ -25,7 +25,7 @@ class Responder:
     def __init__(self):
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
-    def generate(self, subject: str, sender_summary: str, latest_message: str) -> str:
+    def generate(self, subject: str, sender_summary: str, latest_message: str, thread_summary: str = "") -> str:
         """
         Generate a Markdown reply using sender summary, latest user message,
         and relevant document chunks.
@@ -47,13 +47,15 @@ class Responder:
             "role": "system",
             "content": (
                 "You are Tara, a helpful and friendly teaching assistant.\n"
-                "Use the knowledge base when relevant, but avoid hallucinations.\n\n"
+                "Use the knowledge base when relevant.\n\n"
                 f"Sender summary:\n{sender_summary}\n\n"
+                f"Thread summary:\n{thread_summary}\n\n"
                 f"Relevant document excerpts:\n{rag_context}\n\n"
-                "Respond concisely and naturally. Explain rather than show. Answer without using LaTeX format."
+                "Respond concisely and naturally. Answer without using LaTeX format.\n"
                 "Sign off with: Best,  \nTara"
             ),
         }
+
 
         # --- Messages: Only latest user message ---
         messages = [
@@ -106,3 +108,30 @@ class Responder:
         except Exception as e:
             print("Error summarizing sender:", e)
             return current_summary or new_message
+        
+    def summarize_thread(self, current_summary: str, latest_message: str) -> str:
+        system_prompt = {
+            "role": "system",
+            "content": (
+                "You are an assistant maintaining a running summary of an email thread. "
+                "Incorporate the new message into the existing summary. "
+                "Keep it concise (<200 words) and neutral."
+            ),
+        }
+        messages = [
+            system_prompt,
+            {"role": "user", "content": f"Current thread summary:\n{current_summary}"},
+            {"role": "user", "content": f"New message:\n{latest_message}"},
+            {"role": "user", "content": "Update the summary."},
+        ]
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4.1-nano",
+                messages=messages,
+                max_tokens=200,
+                temperature=0.3,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print("Error summarizing thread:", e)
+            return current_summary or latest_message

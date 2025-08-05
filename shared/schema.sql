@@ -57,3 +57,8 @@ CREATE TABLE IF NOT EXISTS limit_warnings (
     date TEXT,
     PRIMARY KEY (sender_id, date)
 );
+
+CREATE TABLE IF NOT EXISTS thread_summaries (
+    thread_id TEXT PRIMARY KEY,
+    summary TEXT
+);

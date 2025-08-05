@@ -407,9 +407,6 @@ with tab5:
     else:
         st.info("No documents found.")
 
-# ---- Tab 6: Chat with Bot ----
-tab6 = st.tabs(["Chat with Bot"])[0]
-
 with tab6:
     st.header("💬 Chat with Bot")
 

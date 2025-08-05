@@ -52,9 +52,8 @@ class MessageHandler:
             to_email = parseaddr(mime_msg.get('To', ''))[1].lower()
             if f"+{plus_filter.lower()}@" not in to_email:
                 logging.info(f"Skipping message {msg_id}: does not match plus address filter ({plus_filter})")
-                self.gmail.mark_as_read(msg_id)  # optional: mark as read to avoid repeated checks
+                self.gmail.mark_as_read(msg_id)
                 return
-
 
         # Exit early if past sender limit
         sender_limit_enabled = self.db.get_setting("sender_limit_enabled", "1") == "1"
@@ -64,8 +63,6 @@ class MessageHandler:
             logging.info(f"Sender {sender_email} has sent {received_today} messages today.")
             if received_today > daily_limit:
                 logging.info(f"Sender {sender_email} exceeded daily message limit ({daily_limit}).")
-
-                # Send warning only once per day
                 if not self.db.has_sent_limit_warning(sender_id):
                     warning_html = """
                     <p>Hello,</p>
@@ -79,7 +76,6 @@ class MessageHandler:
                     logging.info(f"Sent daily limit warning to {sender_email}")
                 else:
                     logging.info(f"Daily limit warning already sent to {sender_email}")
-
                 self.gmail.mark_as_read(msg_id)
                 return
 
@@ -88,21 +84,28 @@ class MessageHandler:
         user_input = EmailReplyParser.parse_reply(body_raw)
         user_input = normalize_soft_linebreaks(user_input)
 
-        # Log only sender + thread info
         logging.info(f"New email received from {sender_email} (thread {thread_id})")
 
-        # Save message
+        # Save incoming message
         self.db.save_message(
             msg_id, thread_id, sender_email, subject,
             user_input, is_from_bot=0, timestamp=timestamp
         )
 
-        # Generate AI response
-        current_summary = self.db.get_sender_summary(sender_id)
+        # --- NEW: Handle thread summary ---
+        current_thread_summary = self.db.get_thread_summary(thread_id)
+        updated_thread_summary = self.responder.summarize_thread(current_thread_summary, user_input)
+        self.db.update_thread_summary(thread_id, updated_thread_summary)
+
+        # Get sender summary
+        current_sender_summary = self.db.get_sender_summary(sender_id)
+
+        # Generate AI response with thread summary context
         response_markdown = self.responder.generate(
             subject=subject,
-            sender_summary=current_summary,
-            latest_message=user_input
+            sender_summary=current_sender_summary,
+            latest_message=user_input,
+            thread_summary=updated_thread_summary   # NEW
         )
 
         # Convert Markdown → HTML
@@ -124,20 +127,19 @@ class MessageHandler:
             timestamp=int(time.time())
         )
 
-        # Determine which of our addresses was used (includes plus if present)
+        # Determine which of our addresses was used
         original_to = parseaddr(mime_msg.get('Delivered-To', mime_msg.get('To', '')))[1]
 
-        # Send and mark as read, passing original_to so thread continuity is preserved
+        # Send and mark as read
         self._send_reply(thread_id, sender_email, reply_html, mime_msg['Message-ID'], subject, original_to)
         self.gmail.mark_as_read(msg_id)
 
-        # Log only summary action
         logging.info(f"Response sent to {sender_email}")
 
         # Update sender summary
-        new_summary = self.responder.summarize_sender(current_summary, user_input)
+        new_sender_summary = self.responder.summarize_sender(current_sender_summary, user_input)
         logging.info(f"Updated summary for {sender_email}")
-        self.db.update_sender_summary(sender_id, new_summary)
+        self.db.update_sender_summary(sender_id, new_sender_summary)
 
     def _send_reply(self, thread_id, to_email, html_body, original_msg_id, subject, original_to=None):
         if not original_msg_id.startswith('<'):
