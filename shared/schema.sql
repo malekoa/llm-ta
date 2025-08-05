@@ -51,3 +51,9 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS limit_warnings (
+    sender_id TEXT,
+    date TEXT,
+    PRIMARY KEY (sender_id, date)
+);

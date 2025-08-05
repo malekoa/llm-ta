@@ -133,7 +133,7 @@ def close_db():
 atexit.register(close_db)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["Messages", "Senders", "Bot Scheduler", "RAG Documents", "Document Chunks"]
+    ["Messages", "Senders", "Bot Settings", "RAG Documents", "Document Chunks"]
 )
 
 # ---- Tab 1: Messages & Thread Viewer ----
@@ -184,7 +184,7 @@ with tab2:
 
 # ---- Tab 3: Bot Control ----
 with tab3:
-    st.header("🏁 Bot Scheduler")
+    st.header("⚙️ Bot Settings")
 
     # Current values
     current_hours = st.session_state.interval_minutes // 60
@@ -219,6 +219,19 @@ with tab3:
             st.session_state.job = None
             st.warning("Automatic schedule disabled (0 interval).")
 
+    st.subheader("Daily Sender Limit")
+    if "daily_sender_limit" not in st.session_state:
+        st.session_state.daily_sender_limit = int(db.get_setting("daily_sender_limit", "10"))
+
+    new_limit = st.number_input(
+        "Max responses per sender per day", min_value=1, value=st.session_state.daily_sender_limit
+    )
+    if st.button("Save Sender Limit"):
+        db.set_setting("daily_sender_limit", str(new_limit))
+        st.session_state.daily_sender_limit = new_limit
+        st.success("Sender limit updated!")
+
+    st.subheader("🏁 Run Bot Manually")
     if st.button("Run Bot Now"):
         log_path = os.path.join(ROOT_DIR, "bot.log")
         prev_size = os.path.getsize(log_path) if os.path.exists(log_path) else 0

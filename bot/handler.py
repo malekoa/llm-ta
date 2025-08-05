@@ -46,6 +46,31 @@ class MessageHandler:
         sender_id = self.db.hash_email(sender_email)
         subject = extract_subject(mime_msg)
 
+        # Exit early if past sender limit
+        daily_limit = int(self.db.get_setting("daily_sender_limit", "10"))
+        received_today = self.db.count_received_today(sender_id)
+        logging.info(f"Sender {sender_email} has sent {received_today} messages today.")
+        if received_today > daily_limit:
+            logging.info(f"Sender {sender_email} exceeded daily message limit ({daily_limit}).")
+
+            # Send warning only once per day
+            if not self.db.has_sent_limit_warning(sender_id):
+                warning_html = """
+                <p>Hello,</p>
+                <p>You have exceeded the allowed number of emails for today. 
+                Please wait until tomorrow to send more messages.</p>
+                <p>Thank you,</p>
+                <p>Tara</p>
+                """
+                self._send_reply(thread_id, sender_email, warning_html, mime_msg['Message-ID'], subject)
+                self.db.mark_limit_warning_sent(sender_id)
+                logging.info(f"Sent daily limit warning to {sender_email}")
+            else:
+                logging.info(f"Daily limit warning already sent to {sender_email}")
+
+            self.gmail.mark_as_read(msg_id)
+            return
+
         # Extract user input
         body_raw = extract_body(mime_msg)
         user_input = EmailReplyParser.parse_reply(body_raw)

@@ -1,6 +1,8 @@
+import time
 import json
 import sqlite3
 import hashlib
+from datetime import datetime
 from typing import List, Tuple
 from bot.config import Config
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -265,6 +267,12 @@ class Database:
             )
         """)
         self.conn.commit()
+        # Default sender limit if not set
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("daily_sender_limit", "10")
+        )
+        self.conn.commit()
 
     def get_setting(self, key: str, default=None):
         self.cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
@@ -276,6 +284,35 @@ class Database:
             "INSERT INTO settings (key, value) VALUES (?, ?)"
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (key, value)
+        )
+        self.conn.commit()
+
+    def count_received_today(self, sender_id: str) -> int:
+        """
+        Count how many incoming (non-bot) messages from this sender
+        have been received today.
+        """
+        start_of_day = int(time.time() // 86400 * 86400)
+        self.cursor.execute("""
+            SELECT COUNT(*) FROM messages
+            WHERE sender_id = ? AND is_from_bot = 0
+            AND timestamp >= ?
+        """, (sender_id, start_of_day))
+        return self.cursor.fetchone()[0]
+    
+    def has_sent_limit_warning(self, sender_id: str) -> bool:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        self.cursor.execute(
+            "SELECT 1 FROM limit_warnings WHERE sender_id = ? AND date = ?",
+            (sender_id, today),
+        )
+        return self.cursor.fetchone() is not None
+
+    def mark_limit_warning_sent(self, sender_id: str):
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO limit_warnings (sender_id, date) VALUES (?, ?)",
+            (sender_id, today),
         )
         self.conn.commit()
 
