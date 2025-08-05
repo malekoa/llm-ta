@@ -186,92 +186,105 @@ with tab2:
 with tab3:
     st.header("⚙️ Bot Settings")
 
-    st.subheader("Feature Toggles")
+    # --- Feature Toggles & Plus Address ---
+    with st.expander("🔧 Feature Toggles", expanded=True):
+        sender_limit_enabled = db.get_setting("sender_limit_enabled", "1") == "1"
+        auto_response_enabled = db.get_setting("auto_response_enabled", "1") == "1"
 
-    sender_limit_enabled = db.get_setting("sender_limit_enabled", "1") == "1"
-    auto_response_enabled = db.get_setting("auto_response_enabled", "1") == "1"
-
-    new_sender_limit_enabled = st.checkbox(
-        "Enable sender daily limit check", value=sender_limit_enabled
-    )
-
-    if st.button("Save Feature Toggles"):
-        db.set_setting("sender_limit_enabled", "1" if new_sender_limit_enabled else "0")
-        st.success("Feature toggles updated!")
-
-    st.subheader("Plus Address Filter")
-
-    current_plus = db.get_setting("plus_address", "")
-    new_plus = st.text_input("Respond only to emails sent to this plus address (leave blank to disable):", value=current_plus)
-
-    if st.button("Save Plus Address Filter"):
-        db.set_setting("plus_address", new_plus.strip())
-        st.success("Plus address filter updated!")
-
-    # Current values
-    current_hours = st.session_state.interval_minutes // 60
-    current_minutes = st.session_state.interval_minutes % 60
-
-    col1, col2 = st.columns(2)
-    with col1:
-        hours = st.number_input("Hours", 0, 24, current_hours)
-    with col2:
-        minutes = st.number_input("Minutes", 0, 59, current_minutes)
-
-    total_minutes = hours * 60 + minutes
-    st.caption(f"Selected interval: **{hours}h {minutes}m**")
-
-    if st.button("Save Schedule"):
-        st.session_state.interval_minutes = total_minutes
-        db.set_setting("interval_minutes", str(total_minutes))
-
-        if st.session_state.job:
-            st.session_state.scheduler.remove_job(st.session_state.job.id)
-
-        if total_minutes > 0:
-            st.session_state.job = st.session_state.scheduler.add_job(
-                run_bot,
-                'interval',
-                minutes=total_minutes,
-                id='bot_job',
-                replace_existing=True
+        col1, col2 = st.columns(2)
+        with col1:
+            new_sender_limit_enabled = st.checkbox(
+                "Enable sender daily limit check", value=sender_limit_enabled
             )
-            st.success(f"Updated schedule: every {hours}h {minutes}m")
-        else:
-            st.session_state.job = None
-            st.warning("Automatic schedule disabled (0 interval).")
+        with col2:
+            st.caption("Automatically limits number of responses per sender per day.")
 
-    st.subheader("Daily Sender Limit")
-    if "daily_sender_limit" not in st.session_state:
-        st.session_state.daily_sender_limit = int(db.get_setting("daily_sender_limit", "10"))
+        if st.button("Save Feature Toggles"):
+            db.set_setting("sender_limit_enabled", "1" if new_sender_limit_enabled else "0")
+            st.success("Feature toggles updated!")
 
-    new_limit = st.number_input(
-        "Max responses per sender per day", min_value=1, value=st.session_state.daily_sender_limit
-    )
-    if st.button("Save Sender Limit"):
-        db.set_setting("daily_sender_limit", str(new_limit))
-        st.session_state.daily_sender_limit = new_limit
-        st.success("Sender limit updated!")
+        st.markdown("---")
+        st.subheader("Plus Address Filter")
+        current_plus = db.get_setting("plus_address", "")
+        new_plus = st.text_input(
+            "Respond only to emails sent to this plus address (leave blank to disable):",
+            value=current_plus,
+            help="Example: if set to 'password', bot responds only to messages sent to you+password@gmail.com"
+        )
 
-    st.subheader("🏁 Run Bot Manually")
-    if st.button("Run Bot Now"):
-        log_path = os.path.join(ROOT_DIR, "bot.log")
-        prev_size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
+        if st.button("Save Plus Address Filter"):
+            db.set_setting("plus_address", new_plus.strip())
+            st.success("Plus address filter updated!")
 
-        with st.spinner("Running bot..."):
-            subprocess.run(["python", "-m", "bot.main"])
-            time.sleep(0.5)
+    # --- Schedule Settings ---
+    with st.expander("⏱️ Bot Schedule", expanded=True):
+        current_hours = st.session_state.interval_minutes // 60
+        current_minutes = st.session_state.interval_minutes % 60
 
-        st.subheader("Bot Log (new lines after run)")
-        with open(log_path, "r") as f:
-            f.seek(prev_size)
-            new_lines = f.read()
-        st.code(new_lines if new_lines else "(No new log entries)", language="")
+        col1, col2 = st.columns(2)
+        with col1:
+            hours = st.number_input("Hours", 0, 24, current_hours)
+        with col2:
+            minutes = st.number_input("Minutes", 0, 59, current_minutes)
 
-    with st.expander("📜 View Latest Logs", expanded=False):
-        num_lines = st.slider("Lines to show", 50, 500, 200, step=50)
-        log_output = tail(os.path.join(ROOT_DIR, "bot.log"), lines=num_lines)
-        st.code(log_output, language="")
+        total_minutes = hours * 60 + minutes
+        st.caption(f"Selected interval: **{hours}h {minutes}m**")
+
+        if st.button("Save Schedule"):
+            st.session_state.interval_minutes = total_minutes
+            db.set_setting("interval_minutes", str(total_minutes))
+
+            if st.session_state.job:
+                st.session_state.scheduler.remove_job(st.session_state.job.id)
+
+            if total_minutes > 0:
+                st.session_state.job = st.session_state.scheduler.add_job(
+                    run_bot,
+                    'interval',
+                    minutes=total_minutes,
+                    id='bot_job',
+                    replace_existing=True
+                )
+                st.success(f"Updated schedule: every {hours}h {minutes}m")
+            else:
+                st.session_state.job = None
+                st.warning("Automatic schedule disabled (0 interval).")
+
+    # --- Sender Limit ---
+    with st.expander("📨 Daily Sender Limit", expanded=False):
+        if "daily_sender_limit" not in st.session_state:
+            st.session_state.daily_sender_limit = int(db.get_setting("daily_sender_limit", "10"))
+
+        new_limit = st.number_input(
+            "Max responses per sender per day",
+            min_value=1,
+            value=st.session_state.daily_sender_limit
+        )
+        if st.button("Save Sender Limit"):
+            db.set_setting("daily_sender_limit", str(new_limit))
+            st.session_state.daily_sender_limit = new_limit
+            st.success("Sender limit updated!")
+
+    # --- Manual Run + Logs ---
+    with st.expander("🏁 Run Bot & Logs", expanded=False):
+        if st.button("Run Bot Now"):
+            log_path = os.path.join(ROOT_DIR, "bot.log")
+            prev_size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
+
+            with st.spinner("Running bot..."):
+                subprocess.run(["python", "-m", "bot.main"])
+                time.sleep(0.5)
+
+            st.subheader("Bot Log (new lines after run)")
+            with open(log_path, "r") as f:
+                f.seek(prev_size)
+                new_lines = f.read()
+            st.code(new_lines if new_lines else "(No new log entries)", language="")
+
+        with st.expander("📜 View Latest Logs", expanded=False):
+            num_lines = st.slider("Lines to show", 50, 500, 200, step=50)
+            log_output = tail(os.path.join(ROOT_DIR, "bot.log"), lines=num_lines)
+            st.code(log_output, language="")
 
 with tab4:
     st.header("📄 RAG Documents")
