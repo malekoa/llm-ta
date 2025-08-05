@@ -186,6 +186,19 @@ with tab2:
 with tab3:
     st.header("⚙️ Bot Settings")
 
+    st.subheader("Feature Toggles")
+
+    sender_limit_enabled = db.get_setting("sender_limit_enabled", "1") == "1"
+    auto_response_enabled = db.get_setting("auto_response_enabled", "1") == "1"
+
+    new_sender_limit_enabled = st.checkbox(
+        "Enable sender daily limit check", value=sender_limit_enabled
+    )
+
+    if st.button("Save Feature Toggles"):
+        db.set_setting("sender_limit_enabled", "1" if new_sender_limit_enabled else "0")
+        st.success("Feature toggles updated!")
+
     # Current values
     current_hours = st.session_state.interval_minutes // 60
     current_minutes = st.session_state.interval_minutes % 60

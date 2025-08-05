@@ -267,6 +267,11 @@ class Database:
             )
         """)
         self.conn.commit()
+        # Defaults
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("sender_limit_enabled", "1")
+        )
         # Default sender limit if not set
         self.cursor.execute(
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
