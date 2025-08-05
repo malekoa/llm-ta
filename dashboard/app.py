@@ -199,6 +199,15 @@ with tab3:
         db.set_setting("sender_limit_enabled", "1" if new_sender_limit_enabled else "0")
         st.success("Feature toggles updated!")
 
+    st.subheader("Plus Address Filter")
+
+    current_plus = db.get_setting("plus_address", "")
+    new_plus = st.text_input("Respond only to emails sent to this plus address (leave blank to disable):", value=current_plus)
+
+    if st.button("Save Plus Address Filter"):
+        db.set_setting("plus_address", new_plus.strip())
+        st.success("Plus address filter updated!")
+
     # Current values
     current_hours = st.session_state.interval_minutes // 60
     current_minutes = st.session_state.interval_minutes % 60

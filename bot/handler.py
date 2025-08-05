@@ -46,6 +46,16 @@ class MessageHandler:
         sender_id = self.db.hash_email(sender_email)
         subject = extract_subject(mime_msg)
 
+        # Exit early if wrong plus address
+        plus_filter = self.db.get_setting("plus_address", "")
+        if plus_filter:
+            to_email = parseaddr(mime_msg.get('To', ''))[1].lower()
+            if f"+{plus_filter.lower()}@" not in to_email:
+                logging.info(f"Skipping message {msg_id}: does not match plus address filter ({plus_filter})")
+                self.gmail.mark_as_read(msg_id)  # optional: mark as read to avoid repeated checks
+                return
+
+
         # Exit early if past sender limit
         sender_limit_enabled = self.db.get_setting("sender_limit_enabled", "1") == "1"
         if sender_limit_enabled:
@@ -114,8 +124,11 @@ class MessageHandler:
             timestamp=int(time.time())
         )
 
-        # Send and mark as read
-        self._send_reply(thread_id, sender_email, reply_html, mime_msg['Message-ID'], subject)
+        # Determine which of our addresses was used (includes plus if present)
+        original_to = parseaddr(mime_msg.get('Delivered-To', mime_msg.get('To', '')))[1]
+
+        # Send and mark as read, passing original_to so thread continuity is preserved
+        self._send_reply(thread_id, sender_email, reply_html, mime_msg['Message-ID'], subject, original_to)
         self.gmail.mark_as_read(msg_id)
 
         # Log only summary action
@@ -126,12 +139,16 @@ class MessageHandler:
         logging.info(f"Updated summary for {sender_email}")
         self.db.update_sender_summary(sender_id, new_summary)
 
-    def _send_reply(self, thread_id, to_email, html_body, original_msg_id, subject):
+    def _send_reply(self, thread_id, to_email, html_body, original_msg_id, subject, original_to=None):
         if not original_msg_id.startswith('<'):
             original_msg_id = f"<{original_msg_id}>"
 
         msg = MIMEText(html_body, 'html')
-        msg['To'] = to_email
+        msg['To'] = to_email  # always reply to the sender
+        if original_to:
+            msg['From'] = original_to  # use your +password variant for threading
+        else:
+            msg['From'] = "me"
         msg['Subject'] = f"Re: {subject}"
         msg['In-Reply-To'] = original_msg_id
         msg['References'] = original_msg_id
@@ -139,5 +156,4 @@ class MessageHandler:
         raw = msg.as_bytes()
         from base64 import urlsafe_b64encode
         encoded = urlsafe_b64encode(raw).decode()
-        logging.debug(f"Sending reply to {to_email} (thread {thread_id})")
         self.gmail.send(encoded, thread_id)

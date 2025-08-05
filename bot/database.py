@@ -277,6 +277,11 @@ class Database:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             ("daily_sender_limit", "10")
         )
+        # (Blank means no filter)
+        self.cursor.execute(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("plus_address", "")
+        )
         self.conn.commit()
 
     def get_setting(self, key: str, default=None):
